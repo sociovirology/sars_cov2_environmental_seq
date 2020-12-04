@@ -6,6 +6,16 @@ David A. Coil | Timothy Albertson | Stuart H. Cohen | Satya Dandekar | Sam Diaz-
 
 If you are reading or using this, let us know how these data were useful for you. If you use these data and code, please cite the repository or the paper. Always open to collaborate! Please contact us!
 
+Overall Workflow:
+1. Download FAST5's and FASTQ's from SRA
+2. (optional: Basecall script to replicate, only with GPU)
+3. demultiplexing_script.sh [need to adjust so that it does each run automatically, or can just be string of commands]
+4. filter_pipeline.sh
+5. low_coverage_consensus.sh
+6. read_count_informartion.sh [need to adjust so that it does each run automatically]
+7. analysis_figures.R [need to merge reads_run.R. Also re-run to make sure have dependencies, relative paths, etc.]
+
+
 ### Quick Start
 1. Make sure packages are installed (see #2 below)
 2. git clone https://github.com/sociovirology/sars_cov2_environmental_seq.git

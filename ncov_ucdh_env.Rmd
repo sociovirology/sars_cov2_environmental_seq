@@ -1174,6 +1174,9 @@ sbatch -t12:00:00 -c4 --mem=80000 -p NeSI --wrap  "snakemake --profile my_profil
 -update manuscript text
 -Remind David about adding Ivy and AJ to paper
 
+## December 4, 2020
+-Wrap up so that we can be set up for when paper revisions come through
+
 # Overall Analysis, Goals, and To Do
 Update Nov 23, 2020
 1. Phylogenetic analysis (global and CA analysis - from patient or community?)
