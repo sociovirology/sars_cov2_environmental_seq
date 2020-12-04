@@ -1,0 +1,1192 @@
+---
+title: "SARS-CoV-2 Environmental Sequencing from UCD Hospital"
+output: html_notebook
+---
+
+Goal: 
+
+Data Organization: 
+
+
+## 1. Set up ARTIC Network ncov environment in Crick server
+Using instructions from: https://artic.network/ncov-2019/ncov2019-it-setup.html
+
+Setting up the file folders in my Home folder on Crick
+```{bash}
+#login
+ssh sldmunoz@crick.cse.ucdavis.edu
+
+#Start Interactive job
+srun -t12:00:00 -c6 --mem=30000 --pty /bin/bash
+
+#Load conda in module
+module load bio
+#Module bio/1.0 loaded 
+
+#New working directory
+mkdir sars_cov2_environmental_seq
+
+#Move into directory
+cd sars_cov2_environmental_seq
+
+#Clone ARTIC Network
+git clone --recursive https://github.com/artic-network/artic-ncov2019.git
+#error with library
+#unloading bio module
+module unload bio
+
+#Clone ARTIC Network
+git clone --recursive https://github.com/artic-network/artic-ncov2019.git
+#worked this time
+
+module load bio
+#Module bio/1.0 loaded
+
+#Create the environment
+conda env create -f artic-ncov2019/environment.yml
+
+#Activate the environment
+conda activate artic-ncov2019
+```
+
+Now starting from here to follow the bioinformatics SOP from ARTIC Network
+https://artic.network/ncov-2019/ncov2019-bioinformatics-sop.html
+
+```{bash}
+srun -t12:00:00 -c2 --mem=40000 --pty /bin/bash
+
+#Change into working  directory
+cd sars_cov2_environmental_seq/artic-ncov2019/
+
+module load bio
+#Module bio/1.0 loaded 
+
+#Update environment
+conda env remove -n artic-ncov2019
+conda env create -f environment.yml
+conda env create -f environment-medaka.yml
+#This gives an error, maybe deprecated??
+
+#Making directory for first run
+mkdir ncov_ucdh_env_run1
+cd ncov_ucdh_env_run1
+
+#Making directory for fast basecalled reads
+mkdir fast_basecall_minknow
+cd fast_basecall_minknow
+
+#Making directory for Guppy HAC basecalled reads
+mkdir hac_basecall
+cd hac_basecall
+
+#Activate analysis environment
+source activate artic-ncov2019
+```
+
+## 2. First let's just do the pipeline on the fast-basecalled files in MinKNOW
+
+```{bash}
+#Demultiplex with Guppy
+~/ont-guppy/bin/guppy_barcoder --require_barcodes_both_ends -i /home/sldmunoz/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/fastq_pass -s ~/sars_cov2_environmental_seq/artic-ncov2019/ncov_ucdh_env_run1/fast_basecall_minknow/ --arrangements_files "barcode_arrs_nb12.cfg barcode_arrs_nb24.cfg"
+
+#ONT Guppy barcoding software version 3.6.1+249406c
+#input path:         /home/sldmunoz/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/fastq_pass
+#save path:          /home/sldmunoz/sars_cov2_environmental_seq/artic-ncov2019/ncov_ucdh_env_run1/fast_basecall_minknow/
+#arrangement files:  barcode_arrs_nb12.cfg barcode_arrs_nb24.cfg
+#min. score front:   60
+#min. score rear:    60
+
+
+#Found 365 fastq files.
+
+#0%   10   20   30   40   50   60   70   80   90   100%
+#|----|----|----|----|----|----|----|----|----|----|
+#***************************************************
+#Done in 201332 ms.
+
+#MAKE SURE TO CHECK BASECALLING REPORT
+
+
+#Now filter reads (obvious chimeras)
+
+#First we'll start with barcode05 sample 27
+cd barcode05/
+
+artic guppyplex --min-length 400 --max-length 700 --directory ~/sars_cov2_environmental_seq/artic-ncov2019/ncov_ucdh_env_run1/fast_basecall_minknow/barcode05 --prefix ncov_ucdh_env_run1
+#Processing 9 files in /home/sldmunoz/sars_cov2_environmental_seq/artic-ncov2019/ncov_ucdh_env_run1/fast_basecall_minknow/barcode05
+#ncov_ucdh_env_run1_barcode05.fastq	20673
+
+#Run pipeline just for barcode05 sample 27
+artic minion --normalise 200 --threads 4 --scheme-directory ~/sars_cov2_environmental_seq/artic-ncov2019/primer_schemes --read-file ncov_ucdh_env_run1_barcode05.fastq --fast5-directory ~/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/fast5_pass --sequencing-summary /home/sldmunoz/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/sequencing_summary_FAN33832_1b1a423a.txt nCoV-2019/V3 27_floor
+
+#Traceback (most recent call last):
+#  File "/home/sldmunoz/.conda/envs/artic-ncov2019/bin/artic_plot_amplicon_depth", line 7, in <module>
+#    from artic.plot_amplicon_depth import main
+#  File "/home/sldmunoz/.conda/envs/artic-ncov2019/lib/python3.6/site-packages/artic/plot_amplicon_depth.py", line 17, in <module>
+#    import matplotlib.pyplot as plt
+#ModuleNotFoundError: No module named 'matplotlib'
+#Command failed:artic_plot_amplicon_depth --primerScheme /home/sldmunoz/sars_cov2_environmental_seq/artic-ncov2019/primer_schemes/nCoV-2019/V3/nCoV-2019.scheme.bed --sampleID 27_floor --outFilePrefix 27_floor 27_floor*.depths
+
+#Error need to check out
+#Turns out there were two python packages that were required that were not installed: matlibplot and seaborn
+conda install matplotlib
+conda install seaborn
+
+#Now command again:
+ artic minion --normalise 200 --threads 4 --scheme-directory ~/sars_cov2_environmental_seq/artic-ncov2019/primer_schemes --read-file ncov_ucdh_env_run1_barcode05.fastq --fast5-directory ~/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/fast5_pass --sequencing-summary /home/sldmunoz/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/sequencing_summary_FAN33832_1b1a423a.txt nCoV-2019/V3 27_floor
+#success!
+```
+
+Download results from Crick - This command in local terminal
+
+```{bash}
+#IN LOCAL TERMINAL
+
+#Download Results off of Crick Server
+scp -rp sldmunoz@crick.cse.ucdavis.edu:/home/sldmunoz/sars_cov2_environmental_seq/artic-ncov2019/ncov_ucdh_env_run1/fast_basecall_minknow/barcode05 /Users/sociovirology/Downloads
+```
+
+Now we need to do rest of the samples. Make a script to loop through directories  
+
+```{bash}
+#Start development of a loop that will go through each one of the samples
+
+#Let's start with the demultiplexed files from the fast basecalling:
+cd ~/sars_cov2_environmental_seq/artic-ncov2019/ncov_ucdh_env_run1/fast_basecall_minknow/
+
+ls
+#There's a directory for each barcode, labelled barcode01, barcode02, etc.
+
+#Goal is to go through each one of those, fliter for chimeras and then align to reference, etc.
+
+#!/bin/bash
+
+# Script: filter_pipeline.sh
+# This file is shell script that takes demultiplexed reads in folders, filters and runs the ARTIC ncov pipeline on the samples
+for dir in */; 
+do 
+
+echo "$dir"
+echo "${dir%/}"
+
+cd ${dir}/
+pwd
+echo "Moving to $dir folder"
+
+artic guppyplex --min-length 400 --max-length 700 --directory ~/sars_cov2_environmental_seq/artic-ncov2019/ncov_ucdh_env_run1/fast_basecall_minknow/${dir%/} --prefix ncov_ucdh_env_run1
+
+echo "Finished filtering $dir files"  
+
+#Run pipeline for the current sample
+artic minion --normalise 200 --threads 4 --scheme-directory ~/sars_cov2_environmental_seq/artic-ncov2019/primer_schemes --read-file ncov_ucdh_env_run1_${dir%/}.fastq --fast5-directory ~/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/fast5 --sequencing-summary /home/sldmunoz/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/sequencing_summary_FAN33832_1b1a423a.txt nCoV-2019/V3 sample_${dir%/}
+
+echo "Finished running pipeline on sample with $dir files"
+
+#Moving back up one level in directory
+cd ..
+
+done
+#Standard output in output/standard_pipeline_fast_basecall
+
+#Will need to move this script to a scripts folder or similar shared location
+
+```
+
+# 3.Now doing High Accurracy Basecalling on entire data set 
+
+
+Let's try this on Crick server (this was too slow)
+```{bash}
+#We'll do basecalling with all FAST5's, so need to put them all in one top-level directory
+
+#FAST5's are in:
+cd /home/sldmunoz/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/
+
+#Now lets copy all the fast5's to the top level directory
+#From https://unix.stackexchange.com/questions/67503/move-all-files-with-a-certain-extension-from-multiple-subdirectories-into-one-di
+
+#First, let's just list
+find . -name '*.fast5'
+
+#Now let's copy over
+find . -name '*.fast5' -exec cp {} . \;
+#Taking a while, obviously...
+
+#Move all FAST5's to one folder
+mkdir fast5
+mv *.fast5 fast5/
+
+#Turns out FAST5's are already labeled pass or fail in the filename, so killing the subdirectories
+
+#First check that I have all of the files
+ls -al fast5_fail/*.fast5 | wc -l
+#42
+ls -al fast5_pass/*.fast5 | wc -l
+#365
+
+ls -al fast5/*.fast5 | wc -l
+#407
+
+#Adds up, so killing the other directories
+rm -r fast5_fail
+rm -r fast5_pass/
+
+#ugh, turns out there's a recursive flag....
+
+#Make a directory for the HAC FASTQ's
+mkdir fastq_hac
+
+#Now let's basecall with HAC as implemented by Guppy
+#Note, had to remove the "-x auto" option to get this to work in cluster
+#Note, included --progress_stats_frequency -600, for updates every 10 minutes
+~/ont-guppy/bin/guppy_basecaller --input_path /home/sldmunoz/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/fast5 --save_path /home/sldmunoz/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/fastq_hac --config dna_r9.4.1_450bps_hac.cfg --progress_stats_frequency -600 --resume
+#ONT Guppy basecalling software version 3.6.1+249406c, client-server API version 1.1.0
+#config file:        /home/sldmunoz/ont-guppy/data/dna_r9.4.1_450bps_hac.cfg
+#model file:         /home/sldmunoz/ont-guppy/data/template_r9.4.1_450bps_hac.jsn
+#input path:         /home/sldmunoz/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/fast5
+#save path:          /home/sldmunoz/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/fastq_hac
+#chunk size:         2000
+#chunks per runner:  512
+#records per file:   4000
+#num basecallers:    1
+#cpu mode:           ON
+#threads per caller: 4
+
+#Found 407 fast5 files to process.
+#Init time: 3607 ms
+
+#0%   10   20   30   40   50   60   70   80   90   100%
+#|----|----|----|----|----|----|----|----|----|----|
+
+```
+
+Too slow, so moved to doing the basecalling on my desktop, then moved files to Crick server. Command below in 
+```{bash}
+#IN LOCAL TERMINAL
+
+#Upload Guppy HAC basecalled FASTQ's to Crick Server
+scp -rp /Users/sociovirology/Dropbox/mixtup/fastq_hac sldmunoz@crick.cse.ucdavis.edu:/home/sldmunoz/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/
+```
+
+Now we're ready to run pipeline on these files
+
+```{bash}
+#Let's check if the files are in the appropriate location
+cd ~/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491
+
+ls
+#27_floor.minion.log.txt			final_summary_FAN33832_1b1a423a.txt
+#drift_correction_FAN33832_1b1a423a.csv	mux_scan_data_FAN33832_1b1a423a.csv
+#duty_time_FAN33832_1b1a423a.csv		report_FAN33832_20200523_0733_25240491.md
+#fast5					report_FAN33832_20200523_0733_25240491.pdf
+#fastq_fail				sequencing_summary_FAN33832_1b1a423a.txt
+#fastq_hac				throughput_FAN33832_1b1a423a.csv
+#fastq_pass
+
+#Change into hac directory
+cd fastq_hac
+
+#Check out files
+ls -al
+
+#Count files to compare to local copy
+ls -al | wc -l
+#130 
+#Same as local directory
+
+#Demultiplex with Guppy
+~/ont-guppy/bin/guppy_barcoder --require_barcodes_both_ends -i /home/sldmunoz/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/fastq_hac -s ~/sars_cov2_environmental_seq/artic-ncov2019/ncov_ucdh_env_run1/fastq_basecall_hac/ --arrangements_files "barcode_arrs_nb12.cfg barcode_arrs_nb24.cfg"
+
+#ONT Guppy barcoding software version 3.6.1+249406c
+#input path:         /home/sldmunoz/data/ncov_ucdh_env/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/fastq_hac
+#save path:          /home/sldmunoz/sars_cov2_environmental_seq/artic-ncov2019/ncov_ucdh_env_run1/fastq_basecall_hac/
+#arrangement files:  barcode_arrs_nb12.cfg barcode_arrs_nb24.cfg
+#min. score front:   60
+#min. score rear:    60
+
+
+#Found 102 fastq files.
+
+#0%   10   20   30   40   50   60   70   80   90   100%
+#|----|----|----|----|----|----|----|----|----|----|
+#***************************************************
+#Done in 199031 ms.
+
+#Why so many fewer FASTQ files than the fast basecalling?
+```
+
+Ok, now let's go ahead and run the pipeline 
+
+```{bash}
+#Okay let's copy the script from the other folder, obviously this is not ideal and I should change script to be more generalizable and resuable, but want to get out these results soon
+../fast_basecall_minknow/filter_pipeline.sh .
+
+#Run script
+./filter_pipeline.sh
+#Standard output in output/standard_pipeline_hac_basecall
+```
+
+Finished the pipeline and ran without a hitch. Downloaded all files to local computer and now copying just the consensus files to one folder 
+
+```{bash}
+#IN LOCAL TERMINAL
+
+#Copying just the consensus sequences into a folder
+
+#Extract just the consensus files
+ls ~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/output/fastq_basecall_hac/barcode*/*.consensus.fasta
+
+mkdir ~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/output/consensus_seqs
+
+mkdir ~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/output/consensus_seqs/hac
+
+mkdir ~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/output/consensus_seqs/fast_basecall
+
+#Move into directory for fast basecalled FASTQ's
+cd ~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/output/consensus_seqs/fast_basecall
+
+#Copy just consensus sequences
+cp ~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/output/fast_basecall_minknow/barcode*/*.consensus.fasta .
+
+#Move into directory for HAC basecalled FASTQ's
+cd ~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/output/consensus_seqs/hac/
+
+#Copy just consensus sequences
+cp ~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/output/fastq_basecall_hac/barcode*/*.consensus.fasta .
+
+```
+
+# Run 2
+
+Stopped run and stopped basecalling (4 july 2020, 4:30pm). However, it's still writing FAST5's so need to wait for those to be done to then basecall. Really need a faster computer!
+
+Command for HAC basecalling of Run 2
+```{bash}
+/Users/mixtup/downloads/ont-guppy-cpu/bin/guppy_basecaller --input_path /Users/mixtup/MinION_reads/ncov_ucdh_env1_run2/ncov_ucdh_env1_run2/20200703_0834_MN23913_FAN33832_a6c81382/ --save_path /Users/mixtup/Dropbox/mixtup/run2/fastq_hac/ --config dna_r9.4.1_450bps_hac.cfg -r
+```
+
+Started at 10:43am on Monday July 6, 2020 
+
+As of 28 July 2020 at 2:11pm the basecalling has stopped (last fastq generated July 25, 2020 at 11:59pm), but unclear if this is the proper end of the basecalling as logfile does not indicate end. Will check on actual computer tomorrow.
+
+The RAMPART basecalling indicates 6,842,614 reads mapped out of 10,020,217 processed (I recall ~14M reads total according to MinKNOW). Will store RAMPART analysis once I know that all is complete tomorrow. (Also should run with an different reference to see if mapping improves and is able to close the genomes)
+
+For now, let's proceed to run the suggested ARTIC pipeline to get my hands on the sequences
+
+```{bash}
+#Starting from what I have above, but running locally on laptop to avoid uploading to Crick server (although that could be fast). Commands should be the same, though, as the conda environments are set up the same way
+
+#Activate environment
+source activate artic-ncov2019
+
+#Now let's move into the appropriate directory. This is on my laptop/Dropbox folder
+cd /Users/sociovirology/Dropbox/mixtup/run2/fastq_hac
+
+#Copy pipeline shell script to this directory
+cp /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/filter_pipeline.sh .
+
+#Now let's check if this script is truly portable!
+#Make executable
+chmod +x filter_pipeline.sh
+#Let it rip
+#aaaaaand fail
+#Aaaaah. Need to run demultiplexing command first
+
+#Demultiplex with Guppy
+~/Downloads/ont-guppy-cpu/bin/guppy_barcoder --require_barcodes_both_ends -i /Users/sociovirology/Dropbox/mixtup/run2/fastq_hac -s /Users/sociovirology/artic-ncov2019/ncov_ucdh_env1_run2/fastq_hac/ --arrangements_files "barcode_arrs_nb12.cfg barcode_arrs_nb24.cfg"
+
+#ONT Guppy barcoding software version 4.0.14+8d3226e
+#input path:         /Users/sociovirology/Dropbox/mixtup/run2/fastq_hac
+#save path:          /Users/sociovirology/artic-ncov2019/ncov_ucdh_env1_run2/fastq_hac/
+#arrangement files:  barcode_arrs_nb12.cfg barcode_arrs_nb24.cfg
+#min. score front:   60
+#min. score rear:    60
+
+#Found 2660 fastq files.
+#
+#0%   10   20   30   40   50   60   70   80   90   100%
+#|----|----|----|----|----|----|----|----|----|----|
+#*
+#Started July 28, 2020 ~ 3:20pm
+
+```
+
+
+September 8, 2020
+Coming back to this after a while. I completed basecalling of Run 2 on Aug 6, 2020 at 4:42 am, see:  `/Users/mixtup/Dropbox/mixtup/run2/fastq_hac/guppy_basecaller_log-2020-08-06_04-08-18.log`
+
+Basecalled files are on Dropbox.
+
+Oct 26, 2020
+Time to wrap this up. Will start by basecalling Run 5 and work my way back. The following code block is run locally on my office computer 
+
+```{bash}
+#Run 5 files are located locally here:
+cd /Users/mixtup/MinION_reads/ncov_ucdh_env1_run5/ncov_ucdh_env1_run5/20201023_2228_MN23913_FAL36961_2bb8ba89
+
+#Will save HAC basecalled files in the same consistent location: RUN_FILES_LOCATION/fastq_hac
+#May need to move HAC folders already basecalled
+mkdir fastq_hac
+
+#Command for HAC basecalling with Guppy
+#Using 3 CPU threads, as I have a 4 core CPU
+/Users/mixtup/downloads/ont-guppy-cpu/bin/guppy_basecaller --input_path /Users/mixtup/MinION_reads/ncov_ucdh_env1_run5/ncov_ucdh_env1_run5/20201023_2228_MN23913_FAL36961_2bb8ba89/ --save_path /Users/mixtup/MinION_reads/ncov_ucdh_env1_run5/ncov_ucdh_env1_run5/20201023_2228_MN23913_FAL36961_2bb8ba89/fastq_hac/ --config dna_r9.4.1_450bps_hac.cfg -r --num_callers 3
+
+#ONT Guppy basecalling software version 3.2.2+9fe0a787
+#config file:        /Users/mixtup/downloads/ont-guppy-cpu/data/dna_r9.4.1_450bps_hac.cfg
+#model file:         /Users/mixtup/downloads/ont-guppy-cpu/data/template_r9.4.1_450bps_hac.jsn
+#input path:         /Users/mixtup/MinION_reads/ncov_ucdh_env1_run5/ncov_ucdh_env1_run5/20201023_2228_MN23913_FAL36961_2bb8ba89/
+#save path:          /Users/mixtup/MinION_reads/ncov_ucdh_env1_run5/ncov_ucdh_env1_run5/20201023_2228_MN23913_FAL36961_2bb8ba89/fastq_hac/
+#chunk size:         1000
+#chunks per runner:  512
+#records per file:   4000
+#num basecallers:    3
+#cpu mode:           ON
+#threads per caller: 4
+
+#Found 195 fast5 files to process.
+#Init time: 2113 ms
+
+#0%   10   20   30   40   50   60   70   80   90   100%
+#|----|----|----|----|----|----|----|----|----|----|
+#***************************************************
+#Caller time: 181942923 ms, Samples called: 4669999697, samples/s: 25667.4
+#Finishing up any open output files.
+#Basecalling completed successfully.
+```
+
+Oct 29, 2020
+Goodness that took a while... Now let's move to Run 4, which should be much quicker. The following code block is run locally on my office computer.
+
+```{bash}
+#Run 4 files are located locally here:
+cd /Users/mixtup/MinION_reads/ncov_ucdh_env1_run4/ncov_ucdh_env1_run4/20201007_2255_MN23913_ABE356_3ac92cc2
+
+#Will save HAC basecalled files in the same consistent location: RUN_FILES_LOCATION/fastq_hac
+#May need to move HAC folders already basecalled
+mkdir fastq_hac
+
+#Command for HAC basecalling with Guppy
+#Using 3 CPU threads, as I have a 4 core CPU
+/Users/mixtup/downloads/ont-guppy-cpu/bin/guppy_basecaller --input_path /Users/mixtup/MinION_reads/ncov_ucdh_env1_run4/ncov_ucdh_env1_run4/20201007_2255_MN23913_ABE356_3ac92cc2/ --save_path /Users/mixtup/MinION_reads/ncov_ucdh_env1_run4/ncov_ucdh_env1_run4/20201007_2255_MN23913_ABE356_3ac92cc2/fastq_hac/ --config dna_r9.4.1_450bps_hac.cfg -r --num_callers 3
+
+#ONT Guppy basecalling software version 3.2.2+9fe0a787
+#config file:        /Users/mixtup/downloads/ont-guppy-cpu/data/dna_r9.4.1_450bps_hac.cfg
+#model file:         /Users/mixtup/downloads/ont-guppy-cpu/data/template_r9.4.1_450bps_hac.jsn
+#input path:         /Users/mixtup/MinION_reads/ncov_ucdh_env1_run4/ncov_ucdh_env1_run4/20201007_2255_MN23913_ABE356_3ac92cc2/
+#save path:          /Users/mixtup/MinION_reads/ncov_ucdh_env1_run4/ncov_ucdh_env1_run4/20201007_2255_MN23913_ABE356_3ac92cc2/fastq_hac/
+#chunk size:         1000
+#chunks per runner:  512
+#records per file:   4000
+#num basecallers:    3
+#cpu mode:           ON
+#threads per caller: 4
+
+#Found 2 fast5 files to process.
+#Init time: 1742 ms
+
+#0%   10   20   30   40   50   60   70   80   90   100%
+#|----|----|----|----|----|----|----|----|----|----|
+#***************************************************
+#Caller time: 129339 ms, Samples called: 3565822, samples/s: 27569.6
+#Finishing up any open output files.
+#Basecalling completed successfully.
+```
+
+That was waaay faster... Now let's move to Run 3. The following code block is run locally on my office computer.
+
+```{bash}
+#Run 3 files are located locally here:
+cd /Users/mixtup/MinION_reads/ncov_ucdh_env1_run3/ncov_ucdh_env1_run3/20200921_2146_MN23913_FAN19575_5aa17f3a
+
+#Will save HAC basecalled files in the same consistent location: RUN_FILES_LOCATION/fastq_hac
+#May need to move HAC folders already basecalled
+mkdir fastq_hac
+
+#Command for HAC basecalling with Guppy
+#Using 3 CPU threads, as I have a 4 core CPU
+/Users/mixtup/downloads/ont-guppy-cpu/bin/guppy_basecaller --input_path /Users/mixtup/MinION_reads/ncov_ucdh_env1_run3/ncov_ucdh_env1_run3/20200921_2146_MN23913_FAN19575_5aa17f3a/ --save_path /Users/mixtup/MinION_reads/ncov_ucdh_env1_run3/ncov_ucdh_env1_run3/20200921_2146_MN23913_FAN19575_5aa17f3a/fastq_hac/ --config dna_r9.4.1_450bps_hac.cfg -r --num_callers 3
+
+#ONT Guppy basecalling software version 3.2.2+9fe0a787
+#config file:        /Users/mixtup/downloads/ont-guppy-cpu/data/dna_r9.4.1_450bps_hac.cfg
+#model file:         /Users/mixtup/downloads/ont-guppy-cpu/data/template_r9.4.1_450bps_hac.jsn
+#input path:         /Users/mixtup/MinION_reads/ncov_ucdh_env1_run3/ncov_ucdh_env1_run3/20200921_2146_MN23913_FAN19575_5aa17f3a/
+#save path:          /Users/mixtup/MinION_reads/ncov_ucdh_env1_run3/ncov_ucdh_env1_run3/20200921_2146_MN23913_FAN19575_5aa17f3a/fastq_hac/
+#chunk size:         1000
+#chunks per runner:  512
+#records per file:   4000
+#num basecallers:    3
+#cpu mode:           ON
+#threads per caller: 4
+
+#Found 395 fast5 files to process.
+#Init time: 1757 ms
+#
+#0%   10   20   30   40   50   60   70   80   90   100%
+#|----|----|----|----|----|----|----|----|----|----|
+#***************************************************
+#Caller time: 210997676 ms, Samples called: 5405250809, samples/s: 25617.6
+#Finishing up any open output files.
+#Basecalling completed successfully.
+```
+
+Nov 5, 2020
+I'm out of the office, but think I should be able to move the HAC FASTQs from Run 1 and Run 2 
+
+Now, let's use the ARTIC standard pipeline, but let's use some scripts around that to scrape some data
+
+```{bash}
+#First let's get the total number of reads for each run
+
+#Logging into the Crick Server which has at least the FASTQ's for Run 1
+#Mocking up the code here that I can later modify and incorporate into the script
+
+ssh sldmunoz@crick.cse.ucdavis.edu
+srun -t12:00:00 -c2 --mem=40000 --pty /bin/bash
+conda activate artic-ncov2019
+cd ~/sars_cov2_environmental_seq/artic-ncov2019/
+cd ncov_ucdh_env_run1/fastq_basecall_hac/
+#This directory only contains the final output of the ARTIC pipeline of Run 1 HAC
+#I also have a local copy in the output/fastq_basecall_hac/ of this repository (but gitignored): sars_cov2_environmental_seq
+
+#One approach will be to scrape the barcoding summary file and another to check the FASTQ's directly
+
+#First doing the first check here with bash
+
+#Print out the original FASTQ's from the run by recursively searching the results directory
+find . -name 'fastq_runid_*.fastq' -print0 | xargs -0 wc -l | awk 'END{print $1/4}'
+#405968
+
+#The ARTIC guppyplex command puts all the FASTQ's in each barcode folder... But presumably these do not correspond to the originals? Or they are copied to each directory with a match
+
+#In any case, appears that all reads asssigned to a barcode go into 1 FASTQ per barcode. Let's double check for barcode05
+cd barcode05/
+
+#Checking the run files
+wc -l fastq_runid_*.fastq | awk 'END{print $1/4}'
+#40596 
+
+#Now the labeled file for the barcode, should be same total as above
+wc -l ncov_ucdh_env_run1_barcode05.fastq | awk 'END{print $1/4}'
+#20673
+
+#Yeah, not really. Actually looks like each file is copied to each barcode folder if it has a match, even if those are not 
+
+#So approach for total reads above doesn't work, because there's duplicates
+
+#Ok, so probably need to go to original basecalled file to get numbers.
+#Running locally to get an idea
+wc -l /Users/sociovirology/Dropbox/mixtup/fastq_hac/fastq_runid_*.fastq | awk 'END{print $1/4}'
+#405968
+
+#Also can double check with the sequencing summary
+wc -l /Users/sociovirology/Dropbox/mixtup/fastq_hac/sequencing_summary.txt #Run locally
+#  405969 sequencing_summary.txt
+#One more row for the header ;)
+
+#Now let's read the FASTQs for each barcode
+cd ~/sars_cov2_environmental_seq/artic-ncov2019/ncov_ucdh_env_run1/fastq_basecall_hac
+find . -name 'ncov_ucdh_env_run1_barcode*.fastq' -print0 | xargs -0 wc -l | awk '{print $1/4, $2}'
+#33 ./barcode14/ncov_ucdh_env_run1_barcode14.fastq
+#15 ./barcode19/ncov_ucdh_env_run1_barcode19.fastq
+#753 ./barcode12/ncov_ucdh_env_run1_barcode12.fastq
+#2218 ./barcode04/ncov_ucdh_env_run1_barcode04.fastq
+#1472 ./barcode11/ncov_ucdh_env_run1_barcode11.fastq
+#57 ./barcode09/ncov_ucdh_env_run1_barcode09.fastq
+#3 ./barcode23/ncov_ucdh_env_run1_barcode23.fastq
+#121 ./barcode20/ncov_ucdh_env_run1_barcode20.fastq
+#3 ./barcode22/ncov_ucdh_env_run1_barcode22.fastq
+#29 ./barcode16/ncov_ucdh_env_run1_barcode16.fastq
+#3 ./barcode24/ncov_ucdh_env_run1_barcode24.fastq
+#3281 ./barcode08/ncov_ucdh_env_run1_barcode08.fastq
+#65 ./barcode06/ncov_ucdh_env_run1_barcode06.fastq
+#208 ./barcode15/ncov_ucdh_env_run1_barcode15.fastq
+#2507 ./barcode18/ncov_ucdh_env_run1_barcode18.fastq
+#104 ./barcode07/ncov_ucdh_env_run1_barcode07.fastq
+#865 ./barcode02/ncov_ucdh_env_run1_barcode02.fastq
+#176 ./barcode21/ncov_ucdh_env_run1_barcode21.fastq
+#94 ./barcode13/ncov_ucdh_env_run1_barcode13.fastq
+#20673 ./barcode05/ncov_ucdh_env_run1_barcode05.fastq
+#65 ./barcode01/ncov_ucdh_env_run1_barcode01.fastq
+#157 ./barcode10/ncov_ucdh_env_run1_barcode10.fastq
+#12 ./barcode17/ncov_ucdh_env_run1_barcode17.fastq
+#124 ./barcode03/ncov_ucdh_env_run1_barcode03.fastq
+#33038 total
+
+#Looks good, note this script doesn't include the unclassified reads. That command looks like this:
+find . -name 'ncov_ucdh_env_run1_*.fastq' -print0 | xargs -0 wc -l | awk '{print $1/4, $2}'
+#...
+#184993 total
+#This is less than total, so maybe these files are only the mapped reads?
+
+#Let's check in barcoding file summary
+cd ~/sars_cov2_environmental_seq/artic-ncov2019/ncov_ucdh_env_run1/fastq_basecall_hac
+wc -l barcoding_summary.txt
+#405969
+#Looks, good! So 405969 -1 for header = 405,968
+
+#Now let's get totals per barcode from this file 
+cat barcoding_summary.txt | awk '{print $2}' | grep "barcode*" -c
+#93717
+
+#Ok so reading throught the ARTIC documentation we can come up with the following conclusions for what each command represents
+#References:
+# https://artic.network/quick-guide-to-tiling-amplicon-sequencing-bioinformatics.html
+# https://artic.network/ncov-2019/ncov2019-bioinformatics-sop.html
+
+
+#CHECK IN RIGHT DIRECTORY FOR EACH COMMAND
+
+#Total reads basecalled per run
+wc -l /PATH_TO_RUN_FOLDER/fastq_runid_*.fastq | awk 'END{print $1/4}'
+#405968
+#Alternatively:
+wc -l /PATH_TO_RUN_FOLDER/barcoding_summary.txt | awk '{print $1-1}' #Minus 1 for header
+#405968
+#2nd alternative
+wc -l /Users/sociovirology/Dropbox/mixtup/fastq_hac/sequencing_summary.txt | awk '{print $1-1}' #Minus 1 for header
+
+#Now determine reads assigned to each barcode
+
+#Raw totals for all barcodes 
+cat barcoding_summary.txt | awk '{print $2}' | grep "barcode*" -c
+#93717
+
+cat barcoding_summary.txt | awk '{print $2}' | grep "unclassified" -c
+#312252
+
+#The files in the format 'ncov_ucdh_env_run*_barcode*.fastq' represent quality controlled, chimera-filtered reads (via 'artic guppyplex' command)
+#Note this command for Run1
+find . -name 'ncov_ucdh_env_run1_barcode*.fastq' -print0 | xargs -0 wc -l | awk '{print $1/4, $2}'
+#Extract: 33038 reads
+
+#So after quality control, the yield is approximately 93717/405968 = 23%
+
+
+#Ok, now need to get some sequencing stats
+```
+
+Sequencing depth using R
+
+```{r}
+
+#Import pool 1 coverages
+sample_barcode05_pool_1 <- read.delim("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/output/fastq_basecall_hac/barcode05/sample_barcode05.coverage_mask.txt.nCoV-2019_1.depths", header=FALSE)
+
+#Adjust colnames
+colnames(sample_barcode05_pool_1) <- c("reference", "pool", "position", "depth")
+
+sample_barcode05_pool_2 <- read.delim("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/output/fastq_basecall_hac/barcode05/sample_barcode05.coverage_mask.txt.nCoV-2019_2.depths", header=FALSE)
+
+colnames(sample_barcode05_pool_2) <- c("reference", "pool", "position", "depth")
+
+ggplot(sample_barcode05_pool_1, aes(x = position, y = depth)) + 
+  geom_bar(stat = "identity")
+
+ggplot(sample_barcode05_pool_2, aes(x = position, y = depth)) + 
+  geom_bar(stat = "identity")
+
+#Now rearrange to get both depths and
+
+coverage <- sample_barcode05_pool_1
+
+colnames(coverage) <- c("reference", "pool", "position", "depth_pool1")
+
+coverage <- cbind(coverage, sample_barcode05_pool_2$depth)
+
+colnames(coverage) <- c("reference", "pool", "position", "depth_pool1", "depth_pool2")
+ 
+coverage <- mutate(coverage, depth = depth_pool1 + depth_pool2)
+
+ggplot(coverage, aes(x = position, y = depth)) + 
+  geom_bar(stat = "identity")
+
+mean(coverage$depth)
+#191.1099
+
+sd(mean(coverage$depth))
+#153.1654
+
+#Percent with 0 coverage
+nrow(subset(coverage, depth == 0)) / length(coverage$position)
+#0.03685249
+
+#Number of positions with coverage <1X
+nrow(subset(coverage, depth < 1))
+
+#Percent with <5X coverage
+nrow(subset(coverage, depth < 5)) / length(coverage$position)
+#0.06791961
+
+#Number of positions with <5X coverage
+nrow(subset(coverage, depth < 5))
+#[1] 2031
+
+#Number of positions with <20X coverage
+nrow(subset(coverage, depth < 20))
+#[1] 4279
+
+#This code block will be integrated in updated fashion into analysis_figures.R
+
+```
+
+Now let's generate consensus sequences. First evaluate the ones from ARTIC and then make adjustments if needed.
+
+```{bash}
+#From inspection in Geneious it looks like the consensus sequence has 4,312 N's, which is roughly consistent with the positions over 20bp calculated above
+
+#Now the question is whether I can create a consensus that includes positions with less coverage
+
+#First let's check the consensus file from ARTIC and count N's
+
+#on Crick server
+cd /home/sldmunoz/sars_cov2_environmental_seq/artic-ncov2019/ncov_ucdh_env_run1/fastq_basecall_hac/barcode05
+
+#Hacky but works.
+#First awk removes lines in FASTA and tail removes empty first line: https://www.biostars.org/p/9262/
+#Grep delivers only the file lines with sequence 
+#Second awk uses N as the field separator and counts how many times it separated as a way to count N's: https://unix.stackexchange.com/questions/18736/how-to-count-the-number-of-a-specific-character-in-each-line
+awk '/^>/ {printf("\n%s\n",$0);next; } { printf("%s",$0);}  END {printf("\n");}' sample_barcode05.consensus.fasta | tail -n +2 | grep "^>" -v |  awk -F 'N' '{print NF-1}'
+#4312
+
+#Looks good. What about the other consensus files? First sample_barcode05_no_mask_consensus.fasta
+awk '/^>/ {printf("\n%s\n",$0);next; } { printf("%s",$0);}  END {printf("\n");}' sample_barcode05_no_mask_consensus.fasta | tail -n +2 | grep "^>" -v |  awk -F 'N' '{print NF-1}'
+#4297
+
+#Other FASTA's are similar, so let's go ahead and write a new consensus file that includes a lower coverage threshold
+
+#Using command from the sample_barcode05.minion.log.txt, only removing the mask and replace the reference from pre-consensus to actual reference 
+bcftools consensus -f /home/sldmunoz/sars_cov2_environmental_seq/artic-ncov2019/primer_schemes/nCoV-2019/V3/nCoV-2019.reference.fasta sample_barcode05.pass.vcf.gz -o sample_barcode05.no.mask.consensus.fasta
+
+awk '/^>/ {printf("\n%s\n",$0);next; } { printf("%s",$0);}  END {printf("\n");}' sample_barcode05.no.mask.consensus.fasta | tail -n +2 | grep "^>" -v |  awk -F 'N' '{print NF-1}'
+#0
+
+#Huh, *no* N's. Probably uses consensus if basecall is absent.
+#Inspection of the alignment in Geneious shows that the N's in the ARTIC pipeline are now replaced by consensus, but the variants outside those regions are shared with the standard ARTIC pipeline sequences
+
+#Perhaps I can run the mask but use the standard reference
+bcftools consensus -f /home/sldmunoz/sars_cov2_environmental_seq/artic-ncov2019/primer_schemes/nCoV-2019/V3/nCoV-2019.reference.fasta sample_barcode05.pass.vcf.gz -o sample_barcode05.no.mask.consensus.fasta
+
+#bcftools consensus -f sample_barcode05.preconsensus.fasta sample_barcode05.pass.vcf.gz -m sample_barcode05.coverage_mask.txt -o sample_barcode05.consensus.fasta	0.029212044086307287
+
+#Found command to change the depth of the mask. Going to give it another whirl, exporting with a different name
+artic_make_depth_mask --depth 1 --store-rg-depths /home/sldmunoz/sars_cov2_environmental_seq/artic-ncov2019/primer_schemes/nCoV-2019/V3/nCoV-2019.reference.fasta sample_barcode05.primertrimmed.rg.sorted.bam sample_barcode05.coverage_mask_1X.txt
+
+#That worked nicely. Fewer masked regions. Let's try to generate consensus
+
+#Now let's try command again
+bcftools consensus -f /home/sldmunoz/sars_cov2_environmental_seq/artic-ncov2019/primer_schemes/nCoV-2019/V3/nCoV-2019.reference.fasta sample_barcode05.pass.vcf.gz -m sample_barcode05.coverage_mask_1X.txt -o sample_barcode05.1X.mask.consensus.fasta
+#Note: the --sample option not given, applying all records regardless of the genotype
+#The site MN908947.3:28144 overlaps with another variant, skipping...
+
+awk '/^>/ {printf("\n%s\n",$0);next; } { printf("%s",$0);}  END {printf("\n");}' sample_barcode05.1X.mask.consensus.fasta | tail -n +2 | grep "^>" -v |  awk -F 'N' '{print NF-1}'
+#1102
+
+#Compared to results above on number of N's for < 1X is right on the money!!
+#nrow(subset(coverage, depth < 1)) 
+#[1] 1102
+#R command copied from above
+
+#One last thing is to check why the pipeline used preconsesus as the reference and how it was generated
+
+#So it looks like pre-consenus is a, well, pre-consensus FASTA generated using the Wuhan reference, and masking out by depth and failed variants (from the fail vcf). I think from this, I'm just missing the fail.vcf, so I just need to re-run a command I skipped.
+
+#So, from the top:
+artic_make_depth_mask --depth 1 --store-rg-depths /home/sldmunoz/sars_cov2_environmental_seq/artic-ncov2019/primer_schemes/nCoV-2019/V3/nCoV-2019.reference.fasta sample_barcode05.primertrimmed.rg.sorted.bam sample_barcode05.coverage_mask_1X.txt
+
+#skipping the 'artic_plot_amplicon_depth' command and the 'bgzip' and 'tabix' commands as they have no bearing here
+
+artic_mask /home/sldmunoz/sars_cov2_environmental_seq/artic-ncov2019/primer_schemes/nCoV-2019/V3/nCoV-2019.reference.fasta sample_barcode05.coverage_mask_1X.txt sample_barcode05.fail.vcf sample_barcode05.preconsensus_1X.fasta
+
+bcftools consensus -f sample_barcode05.preconsensus_1X.fasta sample_barcode05.pass.vcf.gz -m sample_barcode05.coverage_mask_1X.txt -o sample_barcode05.1X.mask.consensus.fasta
+#Note: the --sample option not given, applying all records regardless of the genotype
+#The site MN908947.3:28144 overlaps with another variant, skipping..
+
+artic_fasta_header sample_barcode05.1X.mask.consensus.fasta "sample_barcode05/ARTIC/nanopolish_1X"
+
+#All looks good so now going to script things so I can just let them run for each MinION Run
+```
+
+```{bash}
+#Made a script called low_coverage_consensus.sh
+
+#IN LOCAL TERMINAL UPLOADED TO CRICK: 
+scp -rp /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/low_coverage_consensus.sh sldmunoz@crick.cse.ucdavis.edu:/home/sldmunoz/sars_cov2_environmental_seq/artic-ncov2019/ncov_ucdh_env_run1/fastq_basecall_hac/
+
+#ON CRICK SERVER:
+chmod +x low_coverage_consensus.sh
+./low_coverage_consensus.sh
+
+#Actually ran without a hitch! 
+
+#START HERE NOV 9 2020: Now need to make code that will save the results for each run.
+```
+
+```{bash}
+#Nov 13, 2020
+
+#Need to re-run the HAC basecalling code for Run 5 using the right R10 config file (quick option is to use the fast basecalling results) and maybe for Run 4, where I used the flongle, if the flongle has a specific config file.  
+
+#Running a script, because also need to demultiplex FAST basecalled data to get prelim data before HAC basecalling and demultiplexing 
+cd /Users/mixtup/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run5
+
+ls
+#fastq_pass		run5_fix_script.sh
+#Note, I copied FASTQ pass here so I could have accessible offline
+
+chmod +x run5_fix_script.sh
+
+./run5_fix_script.sh 
+```
+
+
+```{bash}
+#Now running the pipeline. Copying the pipeline shell script for each of the runs, because each 
+cd /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run1 
+
+chmod +x filter_pipeline.sh 
+./filter_pipeline.sh 
+
+#Ugh, it needs the FAST5's. Moving to lab desktop
+#Ok, starting with Run 1
+cd /Users/mixtup/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run1
+
+chmod +x filter_pipeline_run1.sh
+./filter_pipeline_run1.sh
+
+#Ugh. FAST5 files have to be in same directory apparently. Ok. Let's go
+./filter_pipeline_run1.sh
+
+#Something not working let's try to do one line
+cd barcode01/
+artic minion --normalise 200 --threads 4 --scheme-directory ~/artic-ncov2019/primer_schemes --read-file ncov_ucdh_env_run1_barcode01.fastq --fast5-directory /Users/mixtup/MinION_reads/ncov_ucdh_env1_run1/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/fast5 --sequencing-summary /Users/mixtup/MinION_reads/ncov_ucdh_env1_run1/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/sequencing_summary_FAN33832_1b1a423a.txt nCoV-2019/V3 sample_barcode01
+
+#Jesus Christ! Forgot to run the filtering step
+#Assuming the script will already be in the right directory
+artic guppyplex --min-length 400 --max-length 700 --directory /Users/mixtup/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run1/barcode01 --prefix ncov_ucdh_env_run1
+
+#Ok  now run the minion command
+artic minion --normalise 200 --threads 4 --scheme-directory ~/artic-ncov2019/primer_schemes --read-file ncov_ucdh_env_run1_barcode01.fastq --fast5-directory /Users/mixtup/MinION_reads/ncov_ucdh_env1_run1/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/fast5 --sequencing-summary /Users/mixtup/MinION_reads/ncov_ucdh_env1_run1/ncov_ucdh_env1_run1/20200523_0732_MN23913_FAN33832_25240491/sequencing_summary_FAN33832_1b1a423a.txt nCoV-2019/V3 sample_barcode01
+
+#Ok finsihed modifying the script file to include filtering first (facepalm). Now running
+chmod +x filter_pipeline_run1.sh
+./filter_pipeline_run1.sh
+#Looks like it's working.
+
+#Ok, having done that, let's go for the Run 2 directory
+cd /Users/mixtup/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run2
+
+#Run 2 is taking a while, so I'm going to jump ahead to Run 4, which should be quick
+
+#Run 4
+cd /Users/mixtup/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run4
+
+chmod +x filter_pipeline_run4.sh
+
+./filter_pipeline_run4.sh
+
+#See, that was way faster!
+#Ok, let's go for Run 5, Note that this is the FAST basecalled files so directory structure and results may be different
+
+cd /Users/mixtup/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run5/fastq_pass/demultiplexing/
+
+chmod +x filter_pipeline_run5.sh
+./filter_pipeline_run5.sh
+
+#This is still running, but at a good pace.
+
+#Will leave Run 3 (which should be long as well ) going overnight
+
+#Run 3
+cd /Users/mixtup/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run3
+
+chmod +x filter_pipeline_run3.sh
+```
+
+Now (Nov 17, 2020) all the ARTIC pipeline has been run, except Run 5 which has not been HAC basecalled.
+
+Now need to run the low coverage consensus pipeline and get the data for each sample
+
+```{bash}
+#Run low_coverage_consensus in each run folder.
+
+#Let's try first with Run 1
+cd /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run1/
+
+chmod +x low_coverage_consensus_run1.sh
+
+./low_coverage_consensus_run1.sh
+
+#Ran well for Run 1 after adjusting some paths. Let's go ahead and add command line options to use just 1 script for all runs.
+
+#Since I have made the full path an option, I can run the script from its location:
+cd /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq
+
+chmod +x low_coverage_consensus.sh 
+
+#command, note the first field is the path and the run number in the second field
+./low_coverage_consensus.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run1 run1
+
+#Ok, now let's run for each of the remaining runs
+#Run 2
+./low_coverage_consensus.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run2 run2
+
+#Run 3
+./low_coverage_consensus.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run3 run3
+
+#Run 4
+./low_coverage_consensus.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run4 run4
+
+#Run 5
+#Run 5 files are FAST basecalled in a different location.
+./low_coverage_consensus.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run5/fastq_pass/demultiplexing run5
+
+#Getting unmatched labels because script is generating labels even for samples with no consensus files. Updated script with if statement that checks if a consensus file exists. Testing with Run 5 first
+
+#Run 5 final
+./low_coverage_consensus.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run5/fastq_pass/demultiplexing run5
+#Worked great, let's go in reverse
+
+#Run 4 final
+./low_coverage_consensus.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run4 run4
+
+#Run 3 final
+./low_coverage_consensus.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run3 run3
+
+#Run 2 final
+./low_coverage_consensus.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run2 run2
+
+#Run 1 final
+./low_coverage_consensus.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run1 run1
+```
+
+Now extract read information overall from each run
+
+```{bash}
+cd /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq
+
+chmod +x read_count_information.sh
+
+#Start with Run 5
+./read_count_information.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run5/fastq_pass/demultiplexing run5
+
+#Run 4
+./read_count_information.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run4 run4
+
+#Run 3 final
+./read_count_information.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run3 run3
+
+#Run 2 final
+./read_count_information.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run2 run2
+
+#Run 1 final
+./read_count_information.sh /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run1 run1
+```
+
+Now let's concatenate all these Run Reads files into one file for each so we can import to R and generate stats
+
+```{bash}
+cd /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs
+
+#Just copying the files to the top directory and will use R magic to import
+cp `find . -name 'reads_*.csv'` . 
+```
+
+Now let's move files for total number of N sequences and concatenate so we can import to R and generate stats
+
+```{bash}
+cd /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs
+
+cat `find . -name 'uncalled_bases_run*.csv' ` > uncalled_bases.csv
+```
+
+Nov 25, 2020 Nextstrain Analysis
+
+```{bash}
+#Following the guidelines from the NextStrain site
+# https://nextstrain.github.io/ncov/
+
+#Making a directory in my local computer, in the paper folder:
+mkdir /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov
+
+#Clone the NextStrain ncov and setup environment 
+git clone https://github.com/nextstrain/ncov.git
+
+#Change into directory
+cd ncov
+
+#Download conda environment setup
+curl http://data.nextstrain.org/nextstrain.yml --compressed -o nextstrain.yml
+conda env create -f nextstrain.yml
+conda activate nextstrain
+
+#Install auspice (for visualization of results)
+npm install --global auspice #npm is a JavaScript pacakage manager
+
+#Unzip the sample data set
+gzip -d -c data/example_sequences.fasta.gz > data/example_sequences.fasta
+
+#Run the snakemake pipeline for the example
+snakemake --cores 4 --profile ./my_profiles/getting_started
+
+#Now went on to add the data from our environmental samples, using the instructions here: https://nextstrain.github.io/ncov/running
+#To make it quick, I added the two environmental sequences we got to the FASTA and updated the TSV with relevant metadata
+
+#I copied the example folder and renamed it "ucdmc_ca"
+cp -R my_profiles/example  my_profiles/ucdmc_ca
+mv 
+
+#Run pipeline with the new build/profile "ucdmc_ca"
+snakemake --profile my_profiles/ucdmc_ca -p
+
+#Aaargh, Excel messes up the dates, of course. Corrected. Use cat next time!
+
+#Run pipeline with the new build/profile "ucdmc_ca" (Again)
+snakemake --profile my_profiles/ucdmc_ca -p
+
+#Aaaaaand after a while of waiting... My sequences are not in there. Checking out why
+
+#My two samples not listed in to-exclude.txt or flagged-sequences.tsv
+
+#Could have been removed during subsampling or refining. But hey. There's an include file, so let's see if that works
+
+#But really can't wait for 10 minutes for the analysis to run. Unless.. I make sure to include what I want:
+
+#Including all UC Davis sequences and my samples
+
+#Trying to do this quickly
+grep "CA-CZB" ~/Downloads/uc_davis_sequences.fasta | cut -c 2- | grep -f /dev/stdin /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/data/metadata_2020-11-24_11-29.tsv >> /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/data/first_try_samples.tsv
+
+#Verify it worked
+tail /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/data/first_try_samples.tsv 
+
+
+grep "CA-CZB" /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/data/first_try_samples.fasta | cut -c 2-
+
+#Modified defaults/include.txt to include the samples I sequenced and all the UCD samples listed with the above command
+
+snakemake --profile my_profiles/ucdmc_ca -p
+#After small hiccup involving mismatched metadata fields, all running now
+
+#Looks really cool!
+#Bascially just need to use the most up-to-date data (large file, prob. on cluster) 
+#Also include the first case of community acquired in the US
+```
+
+Here's the above pipeline with a bigger data set performed on the cluster
+
+```{bash}
+#
+ssh sldmunoz@crick.cse.ucdavis.edu
+srun -t12:00:00 -c2 --mem=40000 --pty /bin/bash
+#Move to appropriate directory in cluster
+cd ~/sars_cov2_environmental_seq
+#This would likely be a shell script that would run in the directory it's placed so exclude lines above
+
+#Following the guidelines from the NextStrain site
+# https://nextstrain.github.io/ncov/
+
+#Clone the NextStrain ncov and setup environment 
+git clone https://github.com/nextstrain/ncov.git #for some reason during a job get an error on this: __gmpn_cnd_add_n
+
+#Change into directory
+cd ncov
+
+#Download conda environment setup
+curl http://data.nextstrain.org/nextstrain.yml --compressed -o nextstrain.yml
+conda env create -f nextstrain.yml
+conda activate nextstrain
+
+#Install auspice (for visualization of results)
+#npm install --global auspice #npm is a JavaScript pacakage manager
+#May not install on server side...
+
+#Unzip the sample data set
+gzip -d -c data/example_sequences.fasta.gz > data/example_sequences.fasta
+
+#Run the snakemake pipeline for the example
+snakemake --cores 4 --profile ./my_profiles/getting_started
+
+#Quick check to see if the test worked:
+scp -rp sldmunoz@crick.cse.ucdavis.edu:/home/sldmunoz/sars_cov2_environmental_seq/ncov/auspice/ncov_global.json /Users/sociovirology/Downloads/
+
+#START HERE NOV 30, 2020
+#Now just have to double check all the CZB samples are in the big file, then add just my samples
+tail -n 11 /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/data/first_try_samples.tsv | cut -f 1 | grep -f /dev/stdin /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/data/sequences_2020-11-24_07-29.fasta
+#Yep, all cross verify, so just need to add the barcode samples to the big file.
+#Adding locally and then uploading
+
+#Need to append the two fastas, but first need to remove the reference at the end.
+#Use sed to replace and then append to file
+
+#First barcode05
+sed 's/MN908947.3//g' /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run2/barcode05/sample_barcode05.consensus_5X.fasta >> /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/data/sequences_2020-11-24_07-29.fasta
+
+#Second barcode18
+sed 's/MN908947.3//g' /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run2/barcode18/sample_barcode18.consensus_5X.fasta >> /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/data/sequences_2020-11-24_07-29.fasta
+
+#And done! Uploading that one while I figure out how to add metadata
+#FROM LOCAL TERMINAL
+gzip /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/data/sequences_2020-11-24_07-29.fasta .
+
+#FROM LOCAL TERMINAL
+scp -rp /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/data/sequences_2020-11-24_07-29.fasta sldmunoz@crick.cse.ucdavis.edu:/home/sldmunoz/sars_cov2_environmental_seq/ncov/data/ 
+
+#FROM LOCAL TERMINAL
+#Now let's add our sample metadata to the metadata file
+grep sample_barcode /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/data/first_try_samples.tsv >> /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/data/metadata_2020-11-24_11-29.tsv 
+
+#Let's go ahead and upload the include.txt file and the config files
+#FROM LOCAL TERMINAL
+scp -rp /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/defaults/include.txt sldmunoz@crick.cse.ucdavis.edu:/home/sldmunoz/sars_cov2_environmental_seq/ncov/defaults/
+
+#Now uploading metadata
+#FROM LOCAL TERMINAL
+scp -rp /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/data/metadata_2020-11-24_11-29.tsv sldmunoz@crick.cse.ucdavis.edu:/home/sldmunoz/sars_cov2_environmental_seq/ncov/data/
+
+#And finally let's upload the config files from my_profiles
+scp -rp /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov/my_profiles/ucdmc_ca sldmunoz@crick.cse.ucdavis.edu:/home/sldmunoz/sars_cov2_environmental_seq/ncov/my_profiles/
+
+#Now some edits on the config files to point to the right files
+#FROM CRICK SERVER
+vi builds.yaml
+vi config.yaml 
+
+#Run pipeline with the new build/profile "ucdmc_ca"
+#FROM CRICK SERVER
+snakemake --profile my_profiles/ucdmc_ca -p
+
+#Ugh broken pipe at 94%. Scheduling as a job with a one-liner here:
+sbatch -t12:00:00 -c4 --mem=80000 -p NeSI --wrap  "snakemake --profile my_profiles/ucdmc_ca -p"
+
+#Now went on to add the data from our environmental samples, using the instructions here: https://nextstrain.github.io/ncov/running
+#To make it quick, I added the two environmental sequences we got to the FASTA and updated the TSV with relevant metadata
+```
+
+## November 23, 2020 Update:
+-Turned in prelim results to David Coil
+-Need to wrap up To Do items and have things ready to go
+
+## Nov 24, 2020 Next Steps
+-Next step is to wrap up the phylogenetic tree CA and Global
+-Clean up code and finish minor to-dos 
+-upload to GitHub
+-update manuscript text
+-Remind David about adding Ivy and AJ to paper
+
+# Overall Analysis, Goals, and To Do
+Update Nov 23, 2020
+1. Phylogenetic analysis (global and CA analysis - from patient or community?)
+2. Compare Run1 to Run2 data
+  a. Examine the effect of different treatments on yield (runs 1, 2, 5 sample 8)
+  b. Test or graph the effect of number of reads on coverage
+3. Positive and negative control analysis MAY ADRESS IN THE SCRIPT
+4. Coverage plot for 2 near-complete genomes DONE
+5. RT-qPCR vs. PCR/sequencing NEARLY DONE
+6. Ct score versus coverage stats MIGHT BE ENOUGH JUST TO HAVE PLOT
+7. HAC Basecalling for Run 5! (can run when everything else is ready to go)
+
+Check if the consensus I generated is ok! DONE
+1. Generate near-complete consensus sequences DONE
+3. Graph Ct score versus coverage DONE 
+4. Examine utility of ARTIC primer PCR and sequencing (use depth *and* coverage) vs. RT-qPCR for detection IN PROGRESS
