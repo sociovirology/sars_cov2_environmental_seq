@@ -8,9 +8,9 @@ If you are reading or using this, let us know how these data were useful for you
 
 Overall Workflow:
 1. Download FAST5's and FASTQ's from SRA
-2. (optional: Basecall script to replicate, only with GPU)
+2. basecall_guppy_hac.sh (optional: Basecall script to replicate FASTQ files, only with GPU)
 3. demultiplexing_script.sh [need to adjust so that it does each run automatically, or can just be string of commands]
-4. filter_pipeline.sh
+4. filter_pipeline.sh [need to make Run agnostic, can always string together commands]
 5. low_coverage_consensus.sh
 6. read_count_informartion.sh [need to adjust so that it does each run automatically]
 7. analysis_figures.R [need to merge reads_run.R. Also re-run to make sure have dependencies, relative paths, etc.]

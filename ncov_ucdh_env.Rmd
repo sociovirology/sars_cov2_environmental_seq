@@ -1169,7 +1169,7 @@ sbatch -t12:00:00 -c4 --mem=80000 -p NeSI --wrap  "snakemake --profile my_profil
 
 ## Nov 24, 2020 Next Steps
 -Next step is to wrap up the phylogenetic tree CA and Global
--Clean up code and finish minor to-dos 
+-Clean up code and finish minor to-dos
 -upload to GitHub
 -update manuscript text
 -Remind David about adding Ivy and AJ to paper
