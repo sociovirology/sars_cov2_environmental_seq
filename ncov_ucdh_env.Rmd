@@ -1177,6 +1177,9 @@ sbatch -t12:00:00 -c4 --mem=80000 -p NeSI --wrap  "snakemake --profile my_profil
 ## December 4, 2020
 -Wrap up so that we can be set up for when paper revisions come through
 
+## December 7, 2020
+-Continuing to wrap up, organizing files, updating documentation
+
 # Overall Analysis, Goals, and To Do
 Update Nov 23, 2020
 1. Phylogenetic analysis (global and CA analysis - from patient or community?)
