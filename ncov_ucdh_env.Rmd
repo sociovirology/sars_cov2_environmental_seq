@@ -1180,6 +1180,45 @@ sbatch -t12:00:00 -c4 --mem=80000 -p NeSI --wrap  "snakemake --profile my_profil
 ## December 7, 2020
 -Continuing to wrap up, organizing files, updating documentation
 
+```{bash}
+#Running NextStrain tree locally on Desktop computer in lab office (see line 1005)
+
+#Basecalling and demultiplexing for Run 5 finished today (Dec 7, 2020 ~5:00am) so running rest of the pipeline
+
+cd ~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run5
+
+#Remind me what exactly I ran:
+less run5_fix_script.sh
+
+#Ok so it went through filter_pipeline_run5.sh, which means I only need to run low_coverage_consensus.sh 
+conda activate artic-ncov2019
+
+#Run 5
+./low_coverage_consensus.sh ~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run5/ run5
+
+#Looks good! Interesting, ran the script on fastq_pass folder (without a hitch!)
+
+#Now let's run read_count_information.sh
+
+#Now, again extract read information overall 
+
+#Start with Run 5
+./read_count_information.sh ~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run5/ run5
+
+#No need to copy files back to the run_pipeline_outputs directory because they are output to that directory
+#In the final version may want to place these files that the R script needs in outputs/
+
+cd /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs
+
+#restrict to maxdepth to avoid going to fast basecall demultiplexing folder for Run 5 
+cat `find . -maxdepth 2 -name 'uncalled_bases_run*.csv'` > uncalled_bases.csv
+
+#Ok, now I think we can go to the R script
+
+
+```
+
+
 # Overall Analysis, Goals, and To Do
 Update Nov 23, 2020
 1. Phylogenetic analysis (global and CA analysis - from patient or community?)

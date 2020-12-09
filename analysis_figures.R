@@ -8,8 +8,10 @@
 
 ################ SARS-CoV-2 Hospital Environmental Sample Analyses ################
 #### 1. Data Sources and Preparing Data
-#### 2. Analysis of 
-#### 3. Analysis of 
+#### 2. Overall Run Sequencing Stats
+#### 3. Positive and Negative Control Analysis
+#### 4. Sequencing and RT-qPCR Analysis
+#### 5. Sequencing Depth Analysis of Near-Complete Genomes
 
 #THIS CODE NEEDS FOLOWING FILES: 
 # .xls, 
@@ -23,10 +25,23 @@
 #Code for "Linking remote sensing for targeted surveillance of Avian Influenza virus via tangential flow ultra-filtration and whole segment amplification in California wetlands"
 #Collaboration between Diaz-Munoz Lab and Madeline McCuen, Maurice Pitesky (PI), UC Davis
 
+# GOALS: DELETE BEFORE PUB
+#Sequencing Stats:
+#Total reads per run
+#Total mapped reads
+#Reads per barcode/sample
+#Coverage
+#Percent divergence from reference
+#Number of reads maped vs. Ct score
+
+
 #Load libraries
 library(dplyr)
 library(ggplot2)
+library(plyr)
 library(readr)
+library(gridExtra)
+library(grid)
 
 #library(tidyr)
 #library(ggthemes)
@@ -135,7 +150,6 @@ ggplot(sample_data, aes(x = Sample.number, y = mean_ct)) +
 # saved sheet AJs_run_3 in Plate map.xlsx as run3_barcodes.csv
 # saved sheet AJs_run_4 in Ct_values-ucdmc_samples.xlsx as run4_barcodes.csv
 
-
 #Import Run 1 and Run 2 sample/barcode information (note sample/barcodes combinations are identical in Run 1 and 2)
 run_1_run2_barcodes <- read.csv("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/data/run_1_run2_barcodes.csv")
 
@@ -233,89 +247,171 @@ uncalled_bases <- mutate(uncalled_bases, called_bases = (29902-uncalled_bases))
 #Generate a column with percent called bases
 uncalled_bases <- mutate(uncalled_bases, percent_called = (called_bases/29902*100))
 
-#Coverage 
-ggplot(subset(uncalled_bases, subset = percent_called > 1 & minimum_fold_coverage == 5), aes(x = run_barcode, y = percent_called)) + 
-  geom_point(aes(reorder(run_barcode, percent_called, mean)), position=position_jitter(width = .2, height = .05), size=3.5, alpha=0.75) + coord_flip()
-
 #IMPORTANT: JUSTIFY THE 5X cutoff with code
 uncalled_bases_5X <- subset(uncalled_bases, minimum_fold_coverage == 5)
 
 #Now join uncalled base data
 master_df <- left_join(master_df, uncalled_bases_5X, by="run_barcode")
 
-#### 2. Analysis of Collected Samples ####
+#### 2. Overall Run Sequencing Stats ####
+#Get run information output by the read_count_information.sh script
+#Pick files with the pattern reads_run*.csv
+file_list <- list.files(path="/Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs", pattern="reads_run", full.names=TRUE)
+file_list
 
-#Sequencing Stats:
-#Total reads per run
-#Total mapped reads
-#Reads per barcode/sample
-#Coverage
-#Percent divergence from reference
+#Take all CSV's and make a single dataframe with this magical function
+reads_run <- ldply(file_list, read_csv)
 
-#Number of reads maped vs. Ct score
+#Generate some summary stats
 
-#Coverage vs. Ct Score
-#IMPORTANT: JUSTIFY THE 5X cutoff with code
-uncalled_bases_5X <- subset(uncalled_bases, minimum_fold_coverage == 5)
+#Total reads
+sum(reads_run$total_reads)
+#[1] 17567849
+#~17.6M reads
 
-#Now join uncalled base data
-master_df <- left_join(master_df, uncalled_bases_5X, by="run_barcode")
+#Total QC'd reads
+sum(reads_run$qc_reads)
+#[1] 6670616
+#~6.7M reads
 
-#Graph!
-#Subsetting to include only samples with Ct scores, thus controls not included here (no need to remove). 
-# However, some samples are repeats in different runs 
-ggplot(subset(master_df, !is.na(mean_ct)), aes(x = as.numeric(mean_ct), y = percent_called, color = sample)) + 
-  geom_point(position=position_jitter(width = .05, height = .05), size=3.5, alpha=0.75) + theme(legend.position="none") +
-  xlab("Mean Ct Value from RT-qPCR") + ylab("Percent of Genome Sequenced at ≥ 5X")
+#Percent QC'd reads of total
+(reads_run$qc_reads / reads_run$total_reads) * 100
+#[1] 15.530288 43.263495  3.199072  1.553557 19.506667
 
+#Make Data Frame for Table
+reads_run_table <- data.frame(
+  "Run Number" = c("Run 1", "Run 2", "Run 3", "Run 4", "Run 5"),
+  "Total Reads" = prettyNum(reads_run$total_reads, big.mark=","),
+  "Barcoded Reads" = prettyNum(reads_run$barcoded_reads, big.mark=","),
+  "Unclassified Reads" = prettyNum(reads_run$unclassified_reads, big.mark=","),  
+  "Quality Controlled Reads" = prettyNum(reads_run$qc_reads, big.mark=","),
+  "Percent Reads Passing QC" = round((reads_run$qc_reads / reads_run$total_reads) * 100, digits = 2)
+)
 
-#Summary statistics for percentage coverage. Means and medians won't describe data well, because lots of zeros
-#Let's visualize data to check an appraoch
+#Print out a table with summary information: https://cran.r-project.org/web/packages/gridExtra/vignettes/tableGrob.html
+#Output table
+grid.table(reads_run_table)
+#ggsave("figures/table_reads_run.pdf", t1)
+#Saved manually or ggsave?
 
-#Quick histogram to view the data. 
-ggplot(subset(master_df, !is.na(mean_ct)), aes(x = percent_called)) + geom_histogram()
-#Looks like three groups
+#### 3. Positive and Negative Control Analysis ####
 
-#Groups can also can be viewed in ordered point plot
-ggplot(subset(master_df, percent_called > 1), aes(x = sample, y = percent_called)) + 
-  geom_point(aes(reorder(run_barcode, percent_called, mean)), position=position_jitter(width = .2, height = .05), size=3.5, alpha=0.75) + coord_flip()
+#Let's examine control samples in our runs. We have two objectives:
+ #1. Check that negative samples have no reads mapped to the SARS-CoV-2 reference genome
+ #2. Check that postitive control samples have reads that map to the SARS-CoV-2 reference genome
 
-#Defining three groups of percentage coverage, based on graphs. Note these have repeat samples (e.g. sample 8 run twice)
-#Less than 15% total bases called
-nrow(subset(master_df, percent_called < 15))
-#[1] 75
+#First need create two data frames, one for negatives and one for positives 
 
-#Between 20-40% total bases called
-nrow(subset(master_df, percent_called > 20 & percent_called < 40))
-#[1] 5
-
-#Over 75% total bases called
-nrow(subset(master_df, percent_called > 75))
-#[1] 5
-
-#Detection of SARS-CoV-2 via ARTIC Protocol Sequencing vs. RT-qPCR
-
-#If we were to use PCR/sequencing as a detection method and compare to RT-qPCR how much better would we do?
-
-#First need to remove the positive and negative controls:
-#Check grep expressions
+#To remove the positive and negative controls:
+#Check grep expressions, these keep only the samples (i.e. excluding controls)
 grep("ENV", master_df$sample, value = TRUE)
 grep("^[0-9]", master_df$sample, value = TRUE)
 
-#Now select from data frame and make a new sample only dataframe
-samples_only_master <- rbind(master_df[grep("^[0-9]", master_df$sample), ], master_df[grep("ENV", master_df$sample), ])
+#So now let's make a data frame that inverts the selections to make a controls only data frame
+controls_master_df <- master_df[grep("^[0-9]", master_df$sample, invert = TRUE), ]
+controls_master_df <- controls_master_df[grep("ENV*", controls_master_df$sample, invert = TRUE, ignore.case = TRUE), ]
+
+#How many controls?
+nrow(controls_master_df)
+#[1] 15
+
+grepl("H20*", controls_master_df$sample, ignore.case = TRUE)
+
+#Now classify controls as positive or negative:
+control <- ifelse(grepl("H20*|NTC", controls_master_df$sample, ignore.case = TRUE), "Negative", "Positive")
+
+controls_master_df <- cbind(controls_master_df, control)
+
+#Now check the number of mapped reads according to positive/negative control
+ggplot(controls_master_df, aes(x = sample, y = called_bases)) + 
+  geom_point() + facet_wrap(~ control) + coord_flip()
+
+#Looks like one 
+
+group_by(subset(controls_master_df, select = c(sample, control, run, called_bases)), control, run, called_bases) %>%
+  summarise(
+  count = n(),
+  mean = mean(called_bases)
+  )
+# A tibble: 10 x 5
+# Groups:   control, run [7]
+#control  run   called_bases count  mean
+#<fct>    <fct>        <dbl> <int> <dbl>
+#1 Negative run1             0     3     0
+#2 Negative run2             0     3     0
+#3 Negative run3             0     1     0
+#4 Negative run4           341     1   341
+#5 Negative run4            NA     1    NA
+#6 Negative run5             0     2     0
+#7 Positive run4           941     1   941
+#8 Positive run4            NA     1    NA
+#9 Positive run5             0     1     0
+#10 Positive run5           935     1   935
+
+#Some positive controls failed, but at least one in each run worked
+#Run 4 has reads mapped in the negative control sample (NTC = No Template Control). This run was dropped and samples were re-sequenced in Run 5
+
+#Now select from data frame and make a new sample only dataframe (i.e. excluding controls)
+samples_only_master <- rbind(master_df[grep("^[0-9]", master_df$sample), ], master_df[grep("ENV", master_df$sample, ignore.case = TRUE), ])
 
 #Total samples
 nrow(samples_only_master)
-#[1] 74
+#[1] 80
+
+#Now drop Run 4 from the data frame
+samples_only_master <- subset(samples_only_master, run != "run4")
+
+nrow(samples_only_master)
+#[1] 73
+
+#### 4. Sequencing and RT-qPCR Analysis ####
+#### 4a. Coverage across all samples (excluding Run 4, per control analysis)  
+ggplot(subset(samples_only_master, percent_called > 0), aes(x = run_barcode, y = percent_called)) + 
+  geom_point(aes(reorder(run_barcode, percent_called, mean)), position=position_jitter(width = .2, height = .05), size=3.5, alpha=0.75) + coord_flip()
+
+#Summary statistics for percentage coverage. Means and medians won't describe data well, because lots of zeros
+#Let's visualize data to check best appraoch
+
+#Quick histogram to view the data. 
+ggplot(subset(samples_only_master, !is.na(mean_ct)), aes(x = percent_called)) + geom_histogram()
+#Looks like three groups
+
+#Groups can also can be viewed clearly in ordered point plot
+ggplot(subset(samples_only_master, percent_called > 1), aes(x = sample, y = percent_called)) + 
+  geom_point(aes(reorder(run_barcode, percent_called, mean)), position=position_jitter(width = .2, height = .05), size=3.5, alpha=0.75) + coord_flip()
+
+#Defining three groups of percentage coverage, based on graphs.
+#Less than 15% total bases called
+nrow(subset(samples_only_master, percent_called < 15))
+#[1] 61
+
+#Between 20-40% total bases called
+nrow(subset(samples_only_master, percent_called > 20 & percent_called < 40))
+#[1] 5
+
+#Over 75% total bases called
+nrow(subset(samples_only_master, percent_called > 75))
+#[1] 5
+
+
+#### 4b. Detection of SARS-CoV-2 via ARTIC Protocol Sequencing vs. RT-qPCR
+#If we were to use PCR/sequencing as a detection method and compare to RT-qPCR how much better would we do?
+
+#Coverage vs. Ct Score
+#Subsetting to include only samples with Ct scores 
+ggplot(subset(samples_only_master, !is.na(mean_ct)), aes(x = as.numeric(mean_ct), y = percent_called, color = sample)) + 
+  geom_point(position=position_jitter(width = .05, height = .05), size=3.5, alpha=0.75) + theme(legend.position="none") +
+  xlab("Mean Ct Value from RT-qPCR") + ylab("Percent of Genome Sequenced at ≥ 5X")
+
+#Coverage is clearly related to Ct value, but the graph only includes samples with a CT score
 
 #Now check the number of samples that have a Ct score
 nrow(subset(samples_only_master, mean_ct > 0)) 
-#[1] 23
+#[1] 22
 
 #"Success" rate of RT-qPCR
 nrow(subset(samples_only_master, mean_ct > 0)) / nrow(samples_only_master)
-#[1] 0.3108108
+#[1] 0.3013699
 
 #Now let's look at the sequecing, using percentage coverage 
 #First have to decide on a cutoff. Conservatively can pick >2%. This would be ~600bp that are specifically mapped, compared to a 100bp amplicon that is not sequenced
@@ -326,20 +422,21 @@ nrow(subset(samples_only_master, percent_called > 2))
 
 #"Success" rate
 nrow(subset(samples_only_master, percent_called > 2)) / nrow(samples_only_master)
-#0.4459459
+#0.4383562
 
 #Larger, but not by much. Let's test statistically
 #Now we conduct proportion test with numbers above 
-prop.test(c(23, 32), c(74, 74), correct=T)
+#prop.test(c(22, 32), c(74, 74), correct=T)
 #2-sample test for equality of proportions with continuity correction
-#data:  c(23, 32) out of c(74, 74)
-#X-squared = 1.8518, df = 1, p-value = 0.1736
+
+#data:  c(22, 32) out of c(74, 74)
+#X-squared = 2.3617, df = 1, p-value = 0.1243
 #alternative hypothesis: two.sided
 #95 percent confidence interval:
-#  -0.28960441  0.04636117
+#  -0.30222548  0.03195521
 #sample estimates:
 #  prop 1    prop 2 
-#0.3108108 0.4324324 
+#0.2972973 0.4324324
 #Difference is not statistically significant. 
 
 #Another way to look at this is to look at the samples missed by RT-qPCR
@@ -354,9 +451,9 @@ nrow(subset(samples_only_master, percent_called > 2 & is.na(mean_ct)))
 
 #Detection nearly doubles if using sequencing as indicator!
 
-#### 3. Sequencing Depth Analysis of Near-Complete Genomes  ####
+#### 5. Sequencing Depth Analysis of Near-Complete Genomes  ####
 #First we'll look at which samples we want to generate plots for
-subset(master_df, percent_called > 90, select = c("barcode", "sample", "run_barcode", "percent_called"))
+subset(samples_only_master, percent_called > 90, select = c("barcode", "sample", "run_barcode", "percent_called"))
 #     barcode sample    run_barcode percent_called
 #5  barcode05     27 run1_barcode05       96.30794
 #29 barcode05     27 run2_barcode05       99.01679
@@ -389,7 +486,6 @@ run2_barcode05_pool_2 <- read.delim("~/Dropbox/mixtup/Documentos/ucdavis/papers/
 run2_barcode18_pool_1 <- read.delim("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run2/barcode18/sample_barcode18.coverage_mask.txt.nCoV-2019_1.depths", header=FALSE)
 #Import pool 2 coverages
 run2_barcode18_pool_2 <- read.delim("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run2/barcode18/sample_barcode18.coverage_mask.txt.nCoV-2019_2.depths", header=FALSE)
-
 
 generate_depth_plot <- function(pool1, pool2) { 
   #input are two dataframes imported from ARTIC network output files: barcode0*/sample_barcode0*.coverage_mask.txt.nCoV-2019_1.depths 
@@ -426,8 +522,8 @@ run1_barcode05_depth <- generate_depth_plot(run1_barcode05_pool_1, run1_barcode0
 run2_barcode18_depth <- generate_depth_plot(run2_barcode18_pool_1, run2_barcode18_pool_2)
 run1_barcode18_depth <- generate_depth_plot(run1_barcode18_pool_1, run1_barcode18_pool_2)
 
-#Now generate some individual stats for each one 
-mean(depth$depth)
+#Now generate some individual stats for each one. NEED TO REWRITE
+mean(run2_barcode05_depth$depth)
 #[1] 429.9383
 
 sd(depth$depth)
