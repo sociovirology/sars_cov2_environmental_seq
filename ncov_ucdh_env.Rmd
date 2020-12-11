@@ -1214,8 +1214,7 @@ cd /Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environ
 cat `find . -maxdepth 2 -name 'uncalled_bases_run*.csv'` > uncalled_bases.csv
 
 #Ok, now I think we can go to the R script
-
-
+#Changes in analysis_figures.R
 ```
 
 

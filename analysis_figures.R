@@ -426,7 +426,7 @@ nrow(subset(samples_only_master, percent_called > 2)) / nrow(samples_only_master
 
 #Larger, but not by much. Let's test statistically
 #Now we conduct proportion test with numbers above 
-#prop.test(c(22, 32), c(74, 74), correct=T)
+prop.test(c(22, 32), c(74, 74), correct=T)
 #2-sample test for equality of proportions with continuity correction
 
 #data:  c(22, 32) out of c(74, 74)
@@ -441,6 +441,10 @@ nrow(subset(samples_only_master, percent_called > 2)) / nrow(samples_only_master
 
 #Another way to look at this is to look at the samples missed by RT-qPCR
 
+#Again total samples for analysis
+nrow(samples_only_master)
+#[1] 73
+
 #Number of samples with a Ct score and coverage of > 2%
 nrow(subset(samples_only_master, percent_called > 2 & mean_ct > 0))
 #[1] 17
@@ -449,7 +453,27 @@ nrow(subset(samples_only_master, percent_called > 2 & mean_ct > 0))
 nrow(subset(samples_only_master, percent_called > 2 & is.na(mean_ct)))
 #[1] 15
 
-#Detection nearly doubles if using sequencing as indicator!
+#Detection nearly doubles if using sequencing as indicator. Is that accurate?
+
+#Are there samples that gave a Ct score, but that do not have sequencing data above the threshold?
+nrow(subset(samples_only_master, percent_called < 2 & mean_ct > 0))
+#[1] 5
+
+#So sequencing "misses" some samples, but qPCR misses more.
+
+#Overall coverage of samples detected by sequencing missed by RT-qPCR
+subset(samples_only_master, percent_called > 2 & is.na(mean_ct), select = percent_called)
+
+#mean
+mean(subset(samples_only_master, percent_called > 2 & is.na(mean_ct), select = percent_called)$percent_called)
+#6.270038
+
+#standard deviation
+sd(subset(samples_only_master, percent_called > 2 & is.na(mean_ct), select = percent_called)$percent_called)
+#3.943132
+
+range(subset(samples_only_master, percent_called > 2 & is.na(mean_ct), select = percent_called)$percent_called)
+#[1]  2.190489 14.784964
 
 #### 5. Sequencing Depth Analysis of Near-Complete Genomes  ####
 #First we'll look at which samples we want to generate plots for
@@ -458,7 +482,7 @@ subset(samples_only_master, percent_called > 90, select = c("barcode", "sample",
 #5  barcode05     27 run1_barcode05       96.30794
 #29 barcode05     27 run2_barcode05       99.01679
 #42 barcode18     51 run2_barcode18       91.74637
-#93 barcode10     27 run5_barcode10       93.70611
+#58 barcode10     27 run5_barcode10       99.26426
 
 #Of these we'll choose the Run 2 samples (more reads, more complete) for sample 27 and 51
 # These will be identified by their barcode numbers in the run folder, like so: 
@@ -482,12 +506,17 @@ run2_barcode05_pool_1 <- read.delim("~/Dropbox/mixtup/Documentos/ucdavis/papers/
 #Import pool 2 coverages
 run2_barcode05_pool_2 <- read.delim("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run2/barcode05/sample_barcode05.coverage_mask.txt.nCoV-2019_2.depths", header=FALSE)
 
+#Import Pool coverages from barcode10 in Run 5
+run5_barcode10_pool_1 <- read.delim("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run5/barcode10/sample_barcode10.coverage_mask_1X.txt.nCoV-2019_1.depths", header=FALSE)
+#Import pool 2 coverages
+run5_barcode10_pool_2 <- read.delim("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run5/barcode10/sample_barcode10.coverage_mask_1X.txt.nCoV-2019_2.depths", header=FALSE)
+
 #Import Pool coverages from barcode18 in Run 2
 run2_barcode18_pool_1 <- read.delim("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run2/barcode18/sample_barcode18.coverage_mask.txt.nCoV-2019_1.depths", header=FALSE)
 #Import pool 2 coverages
 run2_barcode18_pool_2 <- read.delim("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run2/barcode18/sample_barcode18.coverage_mask.txt.nCoV-2019_2.depths", header=FALSE)
 
-generate_depth_plot <- function(pool1, pool2) { 
+depth_info <- function(pool1, pool2) { 
   #input are two dataframes imported from ARTIC network output files: barcode0*/sample_barcode0*.coverage_mask.txt.nCoV-2019_1.depths 
   #Adjust colnames
   colnames(pool1) <- c("reference", "pool", "position", "depth")
@@ -510,17 +539,53 @@ generate_depth_plot <- function(pool1, pool2) {
   #Add up pool depths to 
   depth <- mutate(depth, depth = depth_pool1 + depth_pool2)
   
-  ggplot(depth, aes(x = position, y = depth)) + 
-    geom_bar(stat = "identity")  
+  p1 <- ggplot(depth, aes(x = position, y = depth)) + 
+    geom_bar(stat = "identity")
+  
+  depth_info_output <- list("depth_info_data_frame" = depth, "depth_plot" = p1)
+  return(depth_info_output)
 }
 
+#Generate for sample 27, sequenced in Run 5 as barcode 10
+run5_barcode10_depth <- depth_info(run5_barcode10_pool_1, run5_barcode10_pool_2)
+
+#Mean depth
+mean(run5_barcode10_depth$depth_info_data_frame$depth)
+#[1] 371.2103
+
+#Standard Deviation
+sd(run5_barcode10_depth$depth_info_data_frame$depth)
+#[1] 171.2978
+
+#Depth Plot
+run5_barcode10_depth$depth_plot
+
+#Generate for sample 51, sequenced in Run 2 as barcode 18
+run2_barcode18_depth <- depth_info(run2_barcode18_pool_1, run2_barcode18_pool_2)
+
+#Mean depth
+mean(run2_barcode18_depth$depth_info_data_frame$depth)
+#[1] 377.1445
+
+#Standard Deviation
+sd(run2_barcode18_depth$depth_info_data_frame$depth)
+#[1] 185.0305
+
+#Depth Plot
+run2_barcode18_depth$depth_plot
+
+
+#////////// OLD BELOW
+
+
+
 #Generated a function, let's see if it works
-run2_barcode05_depth <- generate_depth_plot(run2_barcode05_pool_1, run2_barcode05_pool_2)
-run1_barcode05_depth <- generate_depth_plot(run1_barcode05_pool_1, run1_barcode05_pool_2)
+run2_barcode05_depth <- depth_info(run2_barcode05_pool_1, run2_barcode05_pool_2)
+run1_barcode05_depth <- depth_info(run1_barcode05_pool_1, run1_barcode05_pool_2)
 #Ok! Proceed with the other samples
 
-run2_barcode18_depth <- generate_depth_plot(run2_barcode18_pool_1, run2_barcode18_pool_2)
-run1_barcode18_depth <- generate_depth_plot(run1_barcode18_pool_1, run1_barcode18_pool_2)
+run2_barcode18_depth <- depth_info(run2_barcode18_pool_1, run2_barcode18_pool_2)
+run1_barcode18_depth <- depth_info(run1_barcode18_pool_1, run1_barcode18_pool_2)
 
 #Now generate some individual stats for each one. NEED TO REWRITE
 mean(run2_barcode05_depth$depth)
