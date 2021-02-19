@@ -1,8 +1,9 @@
 # Analysis of MinION SARS-CoV-2 sequence data from environmental samples collected at the University of California Davis Medical Center
 
 This github repository includes code (and links to data) from the manuscript:
-"Environmental Surveillance for SARS-CoV-2 at the UC Davis Medical Center"
-David A. Coil | Timothy Albertson | Stuart H. Cohen | Satya Dandekar | Sam Diaz-Munoz | Jonathan A. Eisen | Tracey Goldstein | Maya Juarez | Brandt A Robinson | Christian Sandrock | Daniel G Tompkins | Alexandre Tremeau-Bravard | Angela Haczku
+"SARS-CoV-2 detection and genomic sequencing from hospital surface samples collected at UC Davis"
+
+David A. Coil | Timothy Albertson | Shefali Banerjee | Greg Brennan  | A.J. Campbell | Stuart H. Cohen | Satya Dandekar  | Samuel L Díaz-Muñoz  | Jonathan A. Eisen | Tracey Goldstein  | Ivy R. Jose  | Maya Juarez  | Brandt A Robinson | Stefan Rothenburg | Christian Sandrock |Ana M. M. Stoian  | Daniel G Tompkins  | Alexandre Tremeau-Bravard  | Angela Haczku
 
 If you are reading or using this, let us know how these data were useful for you. If you use these data and code, please cite the repository or the paper. Always open to collaborate! Please contact us!
 
@@ -12,7 +13,7 @@ If you are reading or using this, let us know how these data were useful for you
 3. chmod +x sra_download.sh, ./sra_download.sh
 4. (Optional: Basecall script to replicate FASTQ files, run only with GPU) chmod +x basecall_guppy_hac.sh ; basecall_guppy_hac.sh
 5. chmod +x demultiplexing_script.sh ; ./demultiplexing_script.sh (depends on 3) [need to adjust so that it does each run automatically, or can just be string of commands]
-(note steps 4 and 5 can takes a long time, alternatively download processed files here: )
+(note steps 4 and 5 can take a long time, alternatively download processed files here:)
 6. chmod +x filter_pipeline.sh ; ./filter_pipeline.sh (depends on 5) [need to make Run agnostic, can always string together commands]
 7. chmod +x low_coverage_consensus.sh ; ./low_coverage_consensus.sh (depends on 6)
 8. read_count_informartion.sh (depends on 5) [need to adjust so that it does each run automatically]
@@ -26,16 +27,20 @@ If you are reading or using this, let us know how these data were useful for you
 4. Code
 
 ### 1. Project Description
-Environmental Surveillance for SARS-CoV-2 at the UC Davis Medical Center
+SARS-CoV-2 detection and genomic sequencing from hospital surface samples collected at UC Davis
 
 Abstract:
-
+Rationale: There is little doubt that aerosols play a major role in the transmission of SARS-CoV-2. The significance of the presence and infectivity of this virus on environmental surfaces, especially in a hospital setting, remains less clear. 
+Objectives:  We aimed to analyze surface swabs for SARS-CoV-2 RNA and infectivity, and to determine their suitability for sequence analysis.    
+Methods: Samples were collected during two waves of COVID-19 at the University of California, Davis Medical Center, in COVID-19 patient serving and staff congregation areas. qRT-PCR positive samples were investigated in Vero cell cultures for cytopathic effects  and phylogenetically assessed by whole genome sequencing.   
+Measurements and Main Results: Improved cleaning and patient management practices between April and August 2020 were associated with a substantial reduction of SARS-CoV-2 qRT-PCR positivity (from 11% to 2%) in hospital surface samples. Even though we recovered near-complete genome sequences in some, none of the positive samples (11 of 224 total) caused cytopathic effects in cultured cells suggesting this nucleic acid was either not associated with intact virions, or they were present in insufficient numbers for infectivity. Phylogenetic analysis suggested that the SARS-CoV-2 genomes of the positive samples were derived from hospitalized patients. Genomic sequences isolated from qRT-PCR negative samples indicate a superior sensitivity of viral detection by sequencing. 
+Conclusions: This study confirms the low likelihood that SARS-CoV-2 contamination on hospital surfaces contains infectious virus, disputing the importance of fomites in COVID-19 transmission. Ours is the first report on recovering near-complete SARS-CoV-2 genome sequences directly from environmental surface swabs. 
 
 ### 2. Packages and software used to test code
 This code was tested using the following software packages:
 
 * ONT Guppy barcoding software version 3.6.1+249406c
-* ARTIC ncov2019 Environment
+* ARTIC ncov2019 Environment (https://github.com/artic-network/artic-ncov2019)
 * R version 3.4.1 (2017-06-30, Single Candle), with packages:
 + plyr,readr, ggplot2, gridExtra, grid
 
