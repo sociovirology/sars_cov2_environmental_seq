@@ -1105,7 +1105,7 @@ conda activate nextstrain
 gzip -d -c data/example_sequences.fasta.gz > data/example_sequences.fasta
 
 #Run the snakemake pipeline for the example
-snakemake --cores 4 --profile ./my_profiles/getting_started
+snakemake --cores 6 --profile ./my_profiles/getting_started -p
 
 #Quick check to see if the test worked:
 scp -rp sldmunoz@crick.cse.ucdavis.edu:/home/sldmunoz/sars_cov2_environmental_seq/ncov/auspice/ncov_global.json /Users/sociovirology/Downloads/
@@ -1216,6 +1216,145 @@ cat `find . -maxdepth 2 -name 'uncalled_bases_run*.csv'` > uncalled_bases.csv
 #Ok, now I think we can go to the R script
 #Changes in analysis_figures.R
 ```
+
+
+## Jan 12, 2021
+Included Nextstrain draft figures in manuscript based on small example data set, need to update with all GSAID strains. Moved to Crick server for faster compute. Last time I did this, I recall the final tree didn't include the target samples.
+
+```{bash}
+#Login to Crick Server
+ssh sldmunoz@crick.cse.ucdavis.edu
+#Start interactive job
+srun -t12:00:00 -c4 --mem=80000 --pty /bin/bash
+#Activate environment
+conda activate nextstrain
+#Change to working directory
+cd /home/sldmunoz/sars_cov2_environmental_seq/ncov/
+
+#First checking what happened with the last run on Crick server. Downloading Auspice visualization
+
+#FROM LOCAL TERMINAL
+scp -rp sldmunoz@crick.cse.ucdavis.edu:/home/sldmunoz/sars_cov2_environmental_seq/ncov/auspice/ncov_global.json ~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/ncov_crick_server/
+
+#Ok, looks like that didn't run at all on Crick. Let's attempt
+
+#One liner command
+sbatch -t12:00:00 -c4 --mem=80000 -p NeSI --wrap  "snakemake --profile my_profiles/ucdmc_ca -p"
+#This isn't working 
+
+#Going to try new interactive job, putting lots of resources towards it
+srun -t12:00:00 -c6 --mem=60000 --pty /bin/bash
+
+#Change to directory
+cd /home/sldmunoz/sars_cov2_environmental_seq/ncov
+
+snakemake --cores 6 --profile my_profiles/ucdmc_ca -p
+
+#Got an error, let's start small and scale up. Actually let's even start locally as well. At least in parallel. 
+
+#Locally:
+snakemake --cores 4 --profile ./my_profiles/getting_started
+#That worked without a hitch
+#Let's try with a smaller file, but the same UCDMC config
+snakemake --cores 4 --profile my_profiles/ucdmc_ca -p
+
+#On Crick
+snakemake --cores 8 --profile ./my_profiles/getting_started
+#Also worked, but different than the local copy? With only 18 strains? 
+
+#Coming across a recurrent error, apparently due to Scipy: "nnz of the result is too large"
+#Version 1.54
+
+#Going to go ahead and nuke the Crick server install of Nextstrain and see if build updated in GitHub
+
+
+
+#Oh! Just noticed I was building a job to run with sbatch
+cd /home/sldmunoz/sars_cov2_environmental_seq/ncov
+less nextstrain_ucdmc_job.sh
+
+
+#Okay, just reinstalled everything in Crick (See Line 1078) and it looks like it's all working, for the example and the first try
+#Now going for it with a lot of compute:
+srun -t12:00:00 -c8 --mem=60000 --pty /bin/bash
+conda activate nextstrain
+cd /home/sldmunoz/sars_cov2_environmental_seq/ncov/
+
+sbatch -N 1 -n 8 -t 12:00:00 --mem=60000 nextstrain_ucdmc_job.sh
+
+#Cleanup for a new installation:
+cd /home/sldmunoz/sars_cov2_environmental_seq/ncov/
+
+#Move script
+nextstrain_ucdmc_job.sh ../
+#Move profile
+mv my_profiles/ucdmc_ca/* ../ucdmc_ca/
+#Move big data files
+mv data/*2020* ../../
+#Move includes file
+mv defaults/include.txt ../
+
+#Suspect that the FASTA formatting is messing stuff up. First, let's blow it up and start over. See if we can get the entire data set to work with 
+cd ../
+rm -rf ncov/*
+
+#Now clone again
+cd ~/sars_cov2_environmental_seq
+#Clone the NextStrain ncov and setup environment 
+git clone https://github.com/nextstrain/ncov.git
+
+srun -t12:00:00 -c8 --mem=60000 --pty /bin/bash
+conda activate nextstrain
+cd ncov
+
+#Now run the example file to verify
+gzip -d -c data/example_sequences.fasta.gz > data/example_sequences.fasta
+
+#Run the snakemake pipeline for the example
+snakemake --cores 8 --profile my_profiles/getting_started -p
+
+#Now try to run the entire data set with the fresh environment
+#Got an error, let's try again...
+
+#Ok, removed environment and installed *everything* again and all worked. Now let's go for it with the big data set
+conda env remove -n nextstrain
+
+#Be in right directory
+cd ~/sars_cov2_environmental_seq
+#Move large data
+mv *2020* ncov/data/
+mv nextstrain_ucdmc_job.sh ncov/
+mkdir ncov/my_profiles/ucdmc_ca
+mv ucdmc_ca/* ncov/my_profiles/ucdmc_ca/
+
+#Edit default includes.txt (copied text below)
+vi ncov/defaults/include.txt
+#Wuhan/Hu-1/2019
+#Wuhan-Hu-1/2019
+#Wuhan/WH01/2019
+#sample_barcode18/ARTIC/nanopolish_5X
+#sample_barcode18/ARTIC/nanopolish_5X
+#USA/CA-CZB-1111/2020
+#USA/CA-CZB-1114/2020
+#USA/CA-CZB-1136/2020
+#USA/CA-CZB-1137/2020
+#USA/CA-CZB-1138/2020
+#USA/CA-CZB-1139/2020
+#USA/CA-CZB-1140/2020
+#USA/CA-CZB-1141/2020
+#USA/CA-CZB-1142/2020
+#USA/CA-CZB-1143/2020
+#USA/CA-CZB-1144/2020
+#USA/CA-CZB-1145/2020
+
+#Now run job:
+sbatch -N 1 -n 8 -t 12:00:00 --mem=60000 nextstrain_ucdmc_job.sh
+
+
+
+
+```
+
 
 
 # Overall Analysis, Goals, and To Do
