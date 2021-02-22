@@ -11,7 +11,7 @@ If you are reading or using this, let us know how these data were useful for you
 1. Make sure packages are installed (see #2 below)
 2. git clone https://github.com/sociovirology/sars_cov2_environmental_seq.git
 3. chmod +x sra_download.sh, ./sra_download.sh
-4. (Optional: Basecall script to replicate FASTQ files, run only with GPU) chmod +x basecall_guppy_hac.sh ; basecall_guppy_hac.sh
+4. OPTIONAL: Basecall script to replicate FASTQ files, run only with GPU: chmod +x basecall_guppy_hac.sh ; basecall_guppy_hac.sh
 5. chmod +x demultiplexing_script.sh ; ./demultiplexing_script.sh (depends on 3) [need to adjust so that it does each run automatically, or can just be string of commands]
 (note steps 4 and 5 can take a long time, alternatively download processed files here:)
 6. chmod +x filter_pipeline.sh ; ./filter_pipeline.sh (depends on 5) [need to make Run agnostic, can always string together commands]

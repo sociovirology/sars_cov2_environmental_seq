@@ -1,11 +1,7 @@
 #!/bin/bash
 
 # Script: filter_pipeline.sh
-# This file is shell script that takes scripts that are specific to each run, and puts them in the right location in 
-#I know this is not the most elegant coding... :/
-
-cp 
-
+# This file is shell script that takes demultiplexed reads in folders, filters and runs the ARTIC ncov pipeline on the samples
 for dir in */; 
 do 
 
