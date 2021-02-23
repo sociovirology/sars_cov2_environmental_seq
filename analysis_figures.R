@@ -1,6 +1,6 @@
 # Script: analysis_figures.R
-# This file is an R script that processes sample metadata and sequencing pipeline outputs to generate figures and stats for publication
-# NOTE: This file depends on the following scripts being run first: sra_download.sh, demultiplexing_script.sh, filter_pipeline.sh, low_coverage_consensus.sh, read_count_informartion.sh
+# This file is an R script that processes sample metadata and sequencing pipeline outputs to generate figures and stats for publication (including extras that did not make it into pub!)
+# NOTE: This file depends on the following scripts being run first: sra_download.sh, demultiplexing_script.sh, filter_pipeline.sh, low_coverage_read_information.sh
 
 #This script is part of the following manuscript:
 "SARS-CoV-2 detection and genomic sequencing from hospital surface samples collected at UC Davis"
@@ -37,8 +37,8 @@ library(grid)
 
 #Sheets Pilot "Goldsteinresults.csv" and "169 swabs" have sample and qPCR data for first and second round of hospital environmental sampling, respectively
 #Importing below
-first_round_sampling <- read.csv("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/data/Pilot Goldsteinresults.csv")
-second_round_sampling <- read.csv("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/data/169 swabs.csv")
+first_round_sampling <- read.csv("data/Pilot Goldsteinresults.csv")
+second_round_sampling <- read.csv("data/169 swabs.csv")
 
 #Clean out unused columns and rows in each data frame
 first_round_sampling <- first_round_sampling[2:61, 1:11] #Note also removing postive control row from data frame
@@ -68,7 +68,7 @@ sample_data <- union_all(first_round_sampling, second_round_sampling)
 ggplot(sample_data, aes(x = Sample.number, y = CDC_N1Primer_SARS_CoV2_Ct)) + 
   geom_point(position=position_jitter(width = .2, height = .05), size=3.5, alpha=0.75)
 
-#First thing that pops up is the large number of undetermined samples and blank
+#First thing that pops up is the large number of undetermined samples and blanks
 
 #Let's clean up undetermined's now
 sample_data$CDC_N1Primer_SARS_CoV2_Ct[grep("Undetermined", sample_data$CDC_N1Primer_SARS_CoV2_Ct)] <- NA
@@ -133,7 +133,7 @@ ggplot(sample_data, aes(x = Sample.number, y = mean_ct)) +
 # saved sheet AJs_run_4 in Ct_values-ucdmc_samples.xlsx as run4_barcodes.csv
 
 #Import Run 1 and Run 2 sample/barcode information (note sample/barcodes combinations are identical in Run 1 and 2)
-run_1_run2_barcodes <- read.csv("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/sars_cov2_environmental_seq/data/run_1_run2_barcodes.csv")
+run_1_run2_barcodes <- read.csv("data/run_1_run2_barcodes.csv")
 
 #Change NB01 and so on to barcode01, to interface with sequence data exported from bioinformatic analyses
 run_1_run2_barcodes$barcode <- gsub("NB", "barcode", run_1_run2_barcodes$barcode)
@@ -217,7 +217,7 @@ master_df <- left_join(run_sample_barcode, sample_data_subset, by="sample")
 #We will append the sequencing results to this data frame, but first need to import uncalled bases
 
 #Import sequencing results, specifically a list of the number of N's (undefined bases) to calculate percent coverage
-uncalled_bases <- read_csv("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/uncalled_bases.csv", col_names = FALSE)
+uncalled_bases <- read_csv("run_pipeline_outputs/uncalled_bases.csv", col_names = FALSE)
 #Label columns
 colnames(uncalled_bases) <- c("run_barcode", "uncalled_bases", "minimum_fold_coverage")
 #Remove X from coverage column
@@ -238,7 +238,7 @@ master_df <- left_join(master_df, uncalled_bases_5X, by="run_barcode")
 #### 2. Overall Run Sequencing Stats ####
 #Get run information output by the read_count_information.sh script
 #Pick files with the pattern reads_run*.csv
-file_list <- list.files(path="/Users/sociovirology/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs", pattern="reads_run", full.names=TRUE)
+file_list <- list.files(path="run_pipeline_outputs/", pattern="reads_run", full.names=TRUE)
 file_list
 
 #Take all CSV's and make a single dataframe with this magical function
@@ -271,7 +271,7 @@ reads_run_table <- data.frame(
 )
 
 #Print out a table with summary information: https://cran.r-project.org/web/packages/gridExtra/vignettes/tableGrob.html
-#Output table
+#Output table. This is Supplementary Table 3 in the manuscript
 grid.table(reads_run_table)
 #ggsave("figures/table_reads_run.pdf", t1)
 #Saved manually or ggsave?
@@ -380,7 +380,7 @@ nrow(subset(samples_only_master, percent_called > 75))
 #If we were to use PCR/sequencing as a detection method and compare to RT-qPCR how much better would we do?
 
 #Coverage vs. Ct Score
-#Subsetting to include only samples with Ct scores 
+#Subsetting to include only samples with Ct scores. This is Figure 4 in the manuscript
 ggplot(subset(samples_only_master, !is.na(mean_ct)), aes(x = as.numeric(mean_ct), y = percent_called, color = sample)) + 
   geom_point(position=position_jitter(width = .05, height = .05), size=3.5, alpha=0.75) + theme(legend.position="none") +
   xlab("Mean Ct Value from RT-qPCR") + ylab("Percent of Genome Sequenced at ≥ 5X")
@@ -435,7 +435,7 @@ nrow(subset(samples_only_master, percent_called > 2 & mean_ct > 0))
 nrow(subset(samples_only_master, percent_called > 2 & is.na(mean_ct)))
 #[1] 15
 
-#Detection nearly doubles if using sequencing as indicator. Is that accurate?
+#Detection apparently nearly doubles if using sequencing as indicator.
 
 #Are there samples that gave a Ct score, but that do not have sequencing data above the threshold?
 nrow(subset(samples_only_master, percent_called < 2 & mean_ct > 0))
@@ -443,7 +443,7 @@ nrow(subset(samples_only_master, percent_called < 2 & mean_ct > 0))
 
 #So sequencing "misses" some samples, but qPCR misses more.
 
-#Overall coverage of samples detected by sequencing missed by RT-qPCR
+#Overall coverage of samples detected by sequencing missed by RT-qPCR.
 subset(samples_only_master, percent_called > 2 & is.na(mean_ct), select = percent_called)
 
 #mean
@@ -467,6 +467,7 @@ subset(samples_only_master, percent_called > 90, select = c("barcode", "sample",
 #58 barcode10     27 run5_barcode10       99.26426
 
 #Of these we'll choose the Run 2 samples (more reads, more complete) for sample 27 and 51
+# The Run 2 samples aee also the ones uploaded to GSAID and used for the Nextstrain analysis (see GitHub)
 # These will be identified by their barcode numbers in the run folder, like so: 
 # barcode0*/sample_barcode0*.coverage_mask.txt.nCoV-2019_1.depths
 # barcode0*/sample_barcode0*.coverage_mask.txt.nCoV-2019_2.depths
@@ -498,6 +499,7 @@ run2_barcode18_pool_1 <- read.delim("~/Dropbox/mixtup/Documentos/ucdavis/papers/
 #Import pool 2 coverages
 run2_barcode18_pool_2 <- read.delim("~/Dropbox/mixtup/Documentos/ucdavis/papers/covid19_environmental/run_pipeline_outputs/ncov_ucdh_env1_run2/barcode18/sample_barcode18.coverage_mask.txt.nCoV-2019_2.depths", header=FALSE)
 
+#Function to generate depth plots and data frames with depth information  
 depth_info <- function(pool1, pool2) { 
   #input are two dataframes imported from ARTIC network output files: barcode0*/sample_barcode0*.coverage_mask.txt.nCoV-2019_1.depths 
   #Adjust colnames
@@ -528,73 +530,35 @@ depth_info <- function(pool1, pool2) {
   return(depth_info_output)
 }
 
-#Generate for sample 27, sequenced in Run 5 as barcode 10
-run5_barcode10_depth <- depth_info(run5_barcode10_pool_1, run5_barcode10_pool_2)
+#Generate for sample 27, sequenced in Run 2 as barcode 05
+run2_barcode05_depth <- depth_info(run2_barcode05_pool_1, run2_barcode05_pool_2)
+#Mean depth
+mean(run2_barcode05_depth$depth_info_data_frame$depth)
+#[1] 429.9383
+#Standard Deviation
+sd(run2_barcode05_depth$depth_info_data_frame$depth)
+#[1] 147.0732
+#Depth Plot
+run2_barcode05_depth$depth_plot
 
+#Generate for sample 27, sequenced in Run 5 as barcode 10 (This is same sample as above but run as consistency control in Run5)
+run5_barcode10_depth <- depth_info(run5_barcode10_pool_1, run5_barcode10_pool_2)
 #Mean depth
 mean(run5_barcode10_depth$depth_info_data_frame$depth)
 #[1] 371.2103
-
 #Standard Deviation
 sd(run5_barcode10_depth$depth_info_data_frame$depth)
 #[1] 171.2978
-
 #Depth Plot
 run5_barcode10_depth$depth_plot
 
 #Generate for sample 51, sequenced in Run 2 as barcode 18
 run2_barcode18_depth <- depth_info(run2_barcode18_pool_1, run2_barcode18_pool_2)
-
 #Mean depth
 mean(run2_barcode18_depth$depth_info_data_frame$depth)
 #[1] 377.1445
-
 #Standard Deviation
 sd(run2_barcode18_depth$depth_info_data_frame$depth)
 #[1] 185.0305
-
 #Depth Plot
 run2_barcode18_depth$depth_plot
-
-
-#////////// OLD BELOW
-
-
-
-#Generated a function, let's see if it works
-run2_barcode05_depth <- depth_info(run2_barcode05_pool_1, run2_barcode05_pool_2)
-run1_barcode05_depth <- depth_info(run1_barcode05_pool_1, run1_barcode05_pool_2)
-#Ok! Proceed with the other samples
-
-run2_barcode18_depth <- depth_info(run2_barcode18_pool_1, run2_barcode18_pool_2)
-run1_barcode18_depth <- depth_info(run1_barcode18_pool_1, run1_barcode18_pool_2)
-
-#Now generate some individual stats for each one. NEED TO REWRITE
-mean(run2_barcode05_depth$depth)
-#[1] 429.9383
-
-sd(depth$depth)
-#[1] 147.0732
-
-#Percent with 0 coverage
-nrow(subset(depth, depth == 0)) / length(depth$position)
-#[1] 0.009764907
-
-#Number of positions with coverage <1X
-nrow(subset(depth, depth < 1))
-#[1] 292
-
-#Percent with <5X coverage
-nrow(subset(depth, depth < 5)) / length(depth$position)
-#[1] 0.009764907
-
-#Number of positions with <5X coverage
-nrow(subset(coverage, depth < 5))
-#[1] 2031
-
-#Number of positions with <20X coverage
-nrow(subset(coverage, depth < 20))
-#[1] 4279
-
-ggplot(depth, aes(x = position, y = depth)) + 
-  geom_bar(stat = "identity")

@@ -13,10 +13,9 @@ If you are reading or using this, let us know how these data were useful for you
 3. chmod +x sra_download.sh, ./sra_download.sh
 4. OPTIONAL: Basecall script to replicate FASTQ files, run only with GPU: chmod +x basecall_guppy_hac.sh ; basecall_guppy_hac.sh
 5. chmod +x demultiplexing_script.sh ; ./demultiplexing_script.sh (depends on 3)
-6. chmod +x filter_pipeline.sh ; ./filter_pipeline.sh (depends on 5) [need to make Run agnostic, can always string together commands]
-7. chmod +x low_coverage_consensus.sh ; ./low_coverage_consensus.sh (depends on 6)
-8. read_count_informartion.sh (depends on 5) [need to adjust so that it does each run automatically]
-9. Rscript analysis_figures.R (depends on 8) (or load interactively in R)
+6. chmod +x filter_pipeline.sh ; ./filter_pipeline.sh (depends on 5)
+7. chmod +x low_coverage_read_information.sh ; ./low_coverage_read_information.sh (depends on 6)
+8. Rscript analysis_figures.R (depends on 7) (or load interactively in R)
 
 ### CONTENTS
 1. Project Description
