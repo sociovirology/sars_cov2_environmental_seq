@@ -1385,6 +1385,8 @@ snakemake --cores 4 --profile ./my_profiles/getting_started
 #Now will copy the build an other the files to replicate the images included in the paper. Details on the code for generating these files is in the coding notebook (ncov_ucdh_env.Rmd, Line 1113).
 
 #Copy profile for UCDMC-focused build:
+cd ..
+
 cp -R data/nextstrain/ucdmc_ca  ncov/my_profiles/
 
 #Copy (and replace) the default include file
@@ -1397,6 +1399,7 @@ cp data/nextstrain/first_try_samples* ncov/data/
 cd ncov
 snakemake --cores 8 --profile my_profiles/ucdmc_ca -p
 
+#Copy paste file ncov/auspice/ncov_north-america_usa_ca_sacramento.json into https://auspice.us/
 ```
 
 
@@ -1417,4 +1420,4 @@ Update Nov 23, 2020
 Check if the consensus I generated is ok! DONE
 1. Generate near-complete consensus sequences DONE
 3. Graph Ct score versus coverage DONE 
-4. Examine utility of ARTIC primer PCR and sequencing (use depth *and* coverage) vs. RT-qPCR for detection IN PROGRESS
+4. Examine utility of ARTIC primer PCR and sequencing (use depth *and* coverage) vs. RT-qPCR for detection DONE

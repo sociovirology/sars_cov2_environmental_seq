@@ -56,6 +56,9 @@ data/run5_barcodes.csv
 data/run3_barcodes.csv
 data/run_1_run2_barcodes.csv
 
+4) Data and supporting files to run phylogenetic analyses are in:
+data/nextstrain/ (see data/nextstrain/README.md for details)
+
 ### 4. Code
 Below are descriptions of the code files used to generate the tables, figures, and statistics in the paper.
 
@@ -74,3 +77,5 @@ Below are descriptions of the code files used to generate the tables, figures, a
 7) low_coverage_read_information.sh: This is a "driver" script that runs scripts 5) and 6) for each run sub-directory
 
 8) analysis_figures.R: This shell script conducts most of the analysis of data, generating tables, figures, and statistics
+
+9) nextstrain_setup_run.sh: This file is shell script that sets up the NextStrain environment, runs the test NextStrain build, and then copies files for a custom build used to generate images in the paper. This script is independent from other scripts. Alternate way to run analyses presented in data/nextstrain/README.md
