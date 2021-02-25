@@ -16,6 +16,7 @@ If you are reading or using this, let us know how these data were useful for you
 6. chmod +x filter_pipeline.sh ; ./filter_pipeline.sh (depends on 5)
 7. chmod +x low_coverage_read_information.sh ; ./low_coverage_read_information.sh (depends on 6)
 8. Rscript analysis_figures.R (depends on 7) (or load interactively in R)
+9. chmod +x nextstrain_setup_run.sh; ./nextstrain_setup_run.sh (independent of all above, alternatively see data/nextstrain/README.md for web-based analysis)
 
 ### CONTENTS
 1. Project Description
